@@ -1,0 +1,114 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Controle Financeiro Pessoal</title>
+  <link rel="stylesheet" href="style.css" />
+</head>
+<body>
+
+  <main class="app">
+    <section class="header">
+      <h1>Controle Financeiro</h1>
+      <p>Seu painel financeiro pessoal</p>
+    </section>
+
+    <section class="cards">
+      <div class="card">
+        <span>Saldo</span>
+        <strong id="saldo">R$ 0,00</strong>
+      </div>
+
+      <div class="card entrada">
+        <span>Entradas</span>
+        <strong id="totalEntradas">R$ 0,00</strong>
+      </div>
+
+      <div class="card saida">
+        <span>Gastos</span>
+        <strong id="totalSaidas">R$ 0,00</strong>
+      </div>
+    </section>
+
+    <section class="form-box">
+      <h2>Adicionar movimentação</h2>
+
+      <input type="text" id="descricao" placeholder="O que você comprou? Ex: iFood, Uber, mercado" />
+
+      <input type="number" id="valor" placeholder="Valor" />
+
+      <select id="tipo">
+        <option value="saida">Gasto</option>
+        <option value="entrada">Entrada</option>
+      </select>
+
+      <select id="categoriaManual">
+        <option value="">Categoria automática</option>
+        <option>Alimentação</option>
+        <option>Transporte</option>
+        <option>Mercado</option>
+        <option>Saúde</option>
+        <option>Lazer</option>
+        <option>Casa</option>
+        <option>Assinaturas</option>
+        <option>Renda</option>
+        <option>Outros</option>
+      </select>
+
+      <button onclick="adicionarLancamento()">Adicionar</button>
+    </section>
+
+    <section class="dashboard">
+      <h2>Resumo por categoria</h2>
+      <div id="resumoCategorias"></div>
+    </section>
+
+    <section class="extrato">
+      <div class="extrato-topo">
+        <h2>Extrato</h2>
+        <button class="limpar" onclick="limparTudo()">Limpar tudo</button>
+      </div>
+
+      <div id="listaLancamentos"></div>
+    </section>
+  </main>
+
+  <script src="script.js"></script>
+</body>
+<script type="module">
+  import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
+  import { getDatabase, ref, set, onValue } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-database.js";
+
+  // Cole aqui o seu firebaseConfig que você copiou no Passo 1
+  const firebaseConfig = {
+    apiKey: "SUA_API_KEY",
+    authDomain: "SEU_PROJETO.firebaseapp.com",
+    databaseURL: "https://SEU_PROJETO.firebaseio.com",
+    projectId: "SEU_PROJETO",
+    storageBucket: "SEU_PROJETO.appspot.com",
+    messagingSenderId: "ID",
+    appId: "APP_ID"
+  };
+
+  // Inicializa o Firebase
+  const app = initializeApp(firebaseConfig);
+  const db = getDatabase(app);
+  const dbRef = ref(db, 'transacoes/');
+
+  // Exemplo de como SALVAR dados (substitua sua função de salvar do localStorage)
+  function salvarNoFirebase(dados) {
+    set(dbRef, dados);
+  }
+
+  // Exemplo de como LER dados em tempo real
+  onValue(dbRef, (snapshot) => {
+    const data = snapshot.val();
+    if (data) {
+        // Aqui você chama a função que renderiza sua tabela/lista na tela
+        console.log("Dados atualizados:", data);
+        atualizarInterface(data); 
+    }
+  });
+</script>
+</html>
