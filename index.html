@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Financeiro Pro | Dashboard</title>
+  <title>Controle Financeiro PRO</title>
   <link rel="icon" href="data:,">
   <link rel="stylesheet" href="style.css" />
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
@@ -45,7 +45,7 @@
     </div>
   </div>
 
-  <main id="app-content" style="display: none;">
+  <main id="app-content" class="app" style="display: none;">
     <header class="main-header">
       <div class="user-info">
         <h1>Financeiro<span>Pro</span></h1>
@@ -76,7 +76,7 @@
         <div class="card meta-box">
           <div class="meta-header">
             <span><i class="fas fa-bullseye"></i> Meta do Mês</span>
-            <input type="number" id="inputMeta" placeholder="Definir R$" onchange="App.handleMetaChange()">
+            <input type="number" id="inputMeta" placeholder="R$ 0,00" onchange="App.handleMetaChange()">
           </div>
           <div class="progress-container">
             <div id="progress-bar"></div>
@@ -85,7 +85,7 @@
         </div>
 
         <div class="card form-container">
-          <h3>Novo Lançamento</h3>
+          <h3 id="tituloForm">Novo Lançamento</h3>
           <div class="form-group">
             <input type="text" id="descricao" placeholder="Descrição (ex: Peças i30)">
             <input type="number" id="valor" placeholder="Valor R$">
@@ -99,15 +99,15 @@
             <label class="check-container">
               <input type="checkbox" id="recorrente"> Gasto Fixo Mensal
             </label>
-            <button class="btn-add" onclick="App.handleSave()"><i class="fas fa-plus"></i> Salvar</button>
+            <button class="btn-add" id="btnSalvar" onclick="App.handleSave()">Adicionar</button>
           </div>
         </div>
       </aside>
 
       <section class="main-content">
-        <div class="card report-actions">
-            <button onclick="App.exportPDF()" class="btn-pdf"><i class="fas fa-file-pdf"></i> Exportar PDF</button>
-            <button onclick="App.exportExcel()" class="btn-excel"><i class="fas fa-file-excel"></i> Exportar Excel</button>
+        <div class="report-actions">
+            <button onclick="App.exportPDF()" class="btn-pdf"><i class="fas fa-file-pdf"></i> PDF</button>
+            <button onclick="App.exportExcel()" class="btn-excel"><i class="fas fa-file-excel"></i> Excel</button>
         </div>
 
         <div class="dashboard-visuals">
@@ -128,13 +128,13 @@
 
         <div class="card history-container">
           <div class="history-header">
-            <h3>Histórico de Lançamentos</h3>
+            <h3>Extrato</h3>
             <div class="history-filters">
               <select id="filtroMes" onchange="App.updateUI()"></select>
               <select id="filtroAno" onchange="App.updateUI()"></select>
             </div>
           </div>
-          <input type="text" id="inputBusca" placeholder="Pesquisar descrição..." oninput="App.updateUI()" class="search-input">
+          <input type="text" id="inputBusca" placeholder="Pesquisar..." oninput="App.updateUI()" class="search-input">
           <div id="listaLancamentos"></div>
           <button class="btn-clear" onclick="App.clearAll()">Zerar Dados do Mês</button>
         </div>
@@ -182,7 +182,7 @@
         App.setUser(user);
         const snapshot = await window.FB.getPerfil(user.uid);
         const nome = snapshot.exists() ? snapshot.val().nome : (user.displayName || user.email.split('@')[0]);
-        document.getElementById("user-welcome").innerText = `Bem-vindo, ${nome}`;
+        document.getElementById("user-welcome").innerText = `Olá, ${nome}`;
       } else {
         document.getElementById("auth-container").style.display = "flex";
         document.getElementById("app-content").style.display = "none";
