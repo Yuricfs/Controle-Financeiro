@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Controle Financeiro Pro +</title>
+  <title>Controle Financeiro Inteligente</title>
   <link rel="stylesheet" href="style.css" />
   <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 </head>
@@ -12,18 +12,27 @@
   <main class="app">
     <section class="header">
       <h1>Controle Financeiro</h1>
-      <p>Gestão Inteligente</p>
+      <p>ADS Intelligence System</p>
     </section>
 
     <section class="cards">
       <div class="card"><span>Saldo Período</span><strong id="saldo">R$ 0,00</strong></div>
+      <div class="card meta-container">
+        <span>Meta de Gastos</span>
+        <input type="number" id="inputMeta" placeholder="Definir Meta" onchange="window.salvarMeta()">
+        <div class="progress-bg"><div id="progress-bar"></div></div>
+        <small id="statusMeta"></small>
+      </div>
+    </section>
+
+    <section class="cards">
       <div class="card entrada"><span>Entradas</span><strong id="totalEntradas">R$ 0,00</strong></div>
       <div class="card saida"><span>Gastos</span><strong id="totalSaidas">R$ 0,00</strong></div>
     </section>
 
     <section class="form-box">
       <h2 id="tituloForm">Nova movimentação</h2>
-      <input type="text" id="descricao" placeholder="Descrição (ex: Aluguel, Venda i30)" />
+      <input type="text" id="descricao" placeholder="Descrição (ex: Aluguel, Revisão i30)" />
       <input type="number" id="valor" placeholder="Valor" />
       
       <div class="form-row" style="display: flex; gap: 10px; margin-bottom: 10px;">
@@ -42,7 +51,7 @@
         </select>
       </div>
 
-      <div style="margin-bottom: 15px; display: flex; align-items: center; gap: 8px; color: #fff; font-size: 0.9rem;">
+      <div style="margin-bottom: 15px; display: flex; align-items: center; gap: 8px; color: #fff;">
         <input type="checkbox" id="recorrente" style="width: auto;"> 
         <label for="recorrente">Gasto Fixo (Recorrente)</label>
       </div>
@@ -53,9 +62,14 @@
     </section>
 
     <section class="dashboard">
-      <div class="filtros-topo">
+      <div class="filtros-topo" style="display: flex; gap: 10px; margin-bottom: 20px;">
         <select id="filtroMes" onchange="window.atualizarTela()"></select>
         <select id="filtroAno" onchange="window.atualizarTela()"></select>
+      </div>
+
+      <div id="alertaRecorrencia" style="display:none; background: #2563eb; color: white; padding: 10px; border-radius: 8px; margin-bottom: 20px; text-align: center;">
+        <p>Mês novo! Deseja importar seus gastos fixos?</p>
+        <button onclick="window.importarRecorrentes()" style="background: white; color: #2563eb; border: none; padding: 5px 10px; border-radius: 4px; margin-top: 5px; cursor: pointer;">Sim, importar</button>
       </div>
 
       <div class="graficos-grid">
@@ -68,7 +82,6 @@
       <div class="busca-container" style="margin-bottom: 20px;">
         <input type="text" id="inputBusca" placeholder="🔍 Buscar no extrato..." oninput="window.atualizarTela()">
       </div>
-
       <div class="extrato-topo">
         <h2>Extrato</h2>
         <button class="limpar" onclick="window.limparTudo()">Limpar tudo</button>
@@ -97,15 +110,18 @@
     const app = initializeApp(firebaseConfig);
     const db = getDatabase(app);
     const dbRef = ref(db, 'transacoes/');
+    const metaRef = ref(db, 'configuracoes/meta');
 
     window.salvarNoFirebase = (dados) => set(dbRef, dados);
+    window.salvarMetaFirebase = (valor) => set(metaRef, valor);
 
     onValue(dbRef, (snapshot) => {
       const data = snapshot.val();
-      if (typeof window.atualizarInterface === 'function') {
-        window.atualizarInterface(data || []);
-      }
+      if (typeof window.atualizarInterface === 'function') window.atualizarInterface(data || []);
     });
-  </script>
-</body>
-</html>
+
+    onValue(metaRef, (snapshot) => {
+      const valor = snapshot.val();
+      if (valor) {
+        document.getElementById("inputMeta").value = valor;
+        window.atualizarTela();
