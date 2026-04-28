@@ -1,15 +1,12 @@
-// Variáveis Globais (Declaradas APENAS uma vez)
 let lancamentos = JSON.parse(localStorage.getItem("lancamentos")) || [];
 let chartPizza = null, chartLinha = null, idEdicao = null;
 
 const mesesNomes = ["Janeiro", "Fevereiro", "Março", "Abril", "Maio", "Junho", "Julho", "Agosto", "Setembro", "Outubro", "Novembro", "Dezembro"];
 const dataAgora = new Date();
 
-// --- FUNÇÕES DE CONFIGURAÇÃO ---
 function configurarFiltros() {
     const sMes = document.getElementById("filtroMes");
     const sAno = document.getElementById("filtroAno");
-
     if (sMes && sMes.options.length === 0) {
         mesesNomes.forEach((m, i) => sMes.add(new Option(m, i + 1)));
         sMes.value = dataAgora.getMonth() + 1;
@@ -27,11 +24,11 @@ function descobrirCategoria(desc, catM, tipo) {
     if (catM) return catM;
     if (tipo === "entrada") return "Renda";
     const catsAuto = {
-        "Alimentação": ["ifood", "pizza", "burger", "lanche", "restaurante", "salgado"],
-        "Transporte": ["uber", "99", "gasolina", "posto", "i30", "oficina"],
+        "Alimentação": ["ifood", "pizza", "burger", "lanche", "restaurante", "salgado", "comida"],
+        "Transporte": ["uber", "99", "gasolina", "posto", "i30", "oficina", "mecanico"],
         "Mercado": ["mercado", "supermercado", "atacadão"],
-        "Lazer": ["cinema", "bar", "show", "praia"],
-        "Casa": ["aluguel", "energia", "água", "internet"]
+        "Assinaturas": ["netflix", "spotify", "prime", "youtube"],
+        "Casa": ["aluguel", "energia", "internet", "água"]
     };
     const t = desc.toLowerCase();
     for (const c in catsAuto) {
@@ -40,7 +37,6 @@ function descobrirCategoria(desc, catM, tipo) {
     return "Outros";
 }
 
-// --- PERSISTÊNCIA DE DADOS ---
 window.salvarMeta = () => {
     const valor = document.getElementById("inputMeta").value;
     if (window.salvarMetaFirebase) window.salvarMetaFirebase(Number(valor));
@@ -49,16 +45,15 @@ window.salvarMeta = () => {
 
 function salvar() {
     localStorage.setItem("lancamentos", JSON.stringify(lancamentos));
-    if (window.salvarNoFirebase) window.salvarNoFirebase(lancamentos);
+    if (typeof window.salvarNoFirebase === 'function') window.salvarNoFirebase(lancamentos);
 }
 
 window.atualizarInterface = (dados) => { lancamentos = dados || []; atualizarTela(); };
 
-// --- LÓGICA DE RECORRÊNCIA INTELIGENTE ---
+// RECORRÊNCIA
 window.importarRecorrentes = function() {
     const mesS = document.getElementById("filtroMes").value;
     const anoS = document.getElementById("filtroAno").value;
-    
     const recorrentes = lancamentos.filter(i => i.recorrente === true);
     const unicos = [];
     const descricoes = new Set();
@@ -79,7 +74,7 @@ window.importarRecorrentes = function() {
     atualizarTela();
 };
 
-// --- CRUD ---
+// CRUD
 window.prepararEdicao = function(id) {
     const item = lancamentos.find(i => i.id === id);
     if (!item) return;
@@ -89,7 +84,7 @@ window.prepararEdicao = function(id) {
     document.getElementById("tipo").value = item.tipo;
     document.getElementById("categoriaManual").value = item.categoria;
     document.getElementById("recorrente").checked = item.recorrente || false;
-    document.getElementById("tituloForm").innerText = "Editando Lançamento";
+    document.getElementById("tituloForm").innerText = "Editar Lançamento";
     document.getElementById("btnSalvar").innerText = "Salvar Alterações";
     window.scrollTo({ top: 0, behavior: 'smooth' });
 };
@@ -101,7 +96,7 @@ window.adicionarLancamento = function() {
     const catM = document.getElementById("categoriaManual");
     const rec = document.getElementById("recorrente");
 
-    if (!desc.value || !val.value) return alert("Preencha todos os campos!");
+    if (!desc.value || !val.value) return alert("Preencha os campos!");
 
     if (idEdicao) {
         const index = lancamentos.findIndex(i => i.id === idEdicao);
@@ -118,11 +113,11 @@ window.adicionarLancamento = function() {
     desc.value = ""; val.value = ""; rec.checked = false;
 };
 
-window.excluirLancamento = (id) => { if (confirm("Excluir?")) { lancamentos = lancamentos.filter(i => i.id !== id); salvar(); atualizarTela(); } };
+window.excluirLancamento = (id) => { if (confirm("Deseja mesmo excluir?")) { lancamentos = lancamentos.filter(i => i.id !== id); salvar(); atualizarTela(); } };
 
-window.limparTudo = () => { if (confirm("Deseja zerar o extrato?")) { lancamentos = []; salvar(); atualizarTela(); } };
+window.limparTudo = () => { if (confirm("Zerar todo o sistema?")) { lancamentos = []; salvar(); atualizarTela(); } };
 
-// --- GRÁFICOS ---
+// GRÁFICOS MELHORADOS
 function desenharGraficos(filtrados, cats) {
     const pizzaCtx = document.getElementById('meuGrafico');
     const linhaCtx = document.getElementById('graficoLinha');
@@ -131,8 +126,16 @@ function desenharGraficos(filtrados, cats) {
 
     chartPizza = new Chart(pizzaCtx, {
         type: 'doughnut',
-        data: { labels: Object.keys(cats), datasets: [{ data: Object.values(cats), backgroundColor: ['#2563eb', '#ef4444', '#22c55e', '#f59e0b', '#8b5cf6'], borderWidth: 0 }] },
-        options: { plugins: { legend: { position: 'bottom', labels: { color: '#ffffff' } } } }
+        data: {
+            labels: Object.keys(cats),
+            datasets: [{
+                data: Object.values(cats),
+                backgroundColor: ['#3b82f6', '#ef4444', '#10b981', '#f59e0b', '#8b5cf6', '#ec4899', '#06b6d4'],
+                borderWidth: 2,
+                borderColor: '#1e293b'
+            }]
+        },
+        options: { plugins: { legend: { position: 'bottom', labels: { color: '#ffffff', font: { size: 12 } } } } }
     });
 
     const fluxoDiario = {};
@@ -144,12 +147,31 @@ function desenharGraficos(filtrados, cats) {
     
     chartLinha = new Chart(linhaCtx, {
         type: 'line',
-        data: { labels: diasSorted.map(d => `Dia ${d}`), datasets: [{ label: 'Fluxo', data: diasSorted.map(d => fluxoDiario[d]), borderColor: '#4ade80', backgroundColor: 'rgba(74, 222, 128, 0.1)', fill: true, tension: 0.4, pointBackgroundColor: '#4ade80' }] },
-        options: { scales: { y: { grid: { color: 'rgba(255, 255, 255, 0.1)' }, ticks: { color: '#ffffff', font: { weight: 'bold' }, callback: v => 'R$ '+v } }, x: { ticks: { color: '#ffffff' } } }, plugins: { legend: { labels: { color: '#ffffff' } } } }
+        data: {
+            labels: diasSorted.map(d => `Dia ${d}`),
+            datasets: [{
+                label: 'Fluxo (R$)',
+                data: diasSorted.map(d => fluxoDiario[d]),
+                borderColor: '#4ade80',
+                backgroundColor: 'rgba(74, 222, 128, 0.2)',
+                fill: true,
+                tension: 0.4,
+                pointRadius: 6,
+                pointBackgroundColor: '#4ade80'
+            }]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            scales: {
+                y: { grid: { color: 'rgba(255, 255, 255, 0.1)' }, ticks: { color: '#ffffff', font: { weight: 'bold' }, callback: v => 'R$ '+v } },
+                x: { ticks: { color: '#ffffff', font: { weight: 'bold' } } }
+            },
+            plugins: { legend: { labels: { color: '#ffffff' } } }
+        }
     });
 }
 
-// --- RENDERIZAÇÃO ---
 function atualizarTela() {
     configurarFiltros();
     const mesS = document.getElementById("filtroMes").value;
@@ -158,7 +180,7 @@ function atualizarTela() {
 
     const filtrados = lancamentos.filter(i => {
         const [d, m, a] = i.data.split('/');
-        return Number(m) == mesS && Number(a) == anoS && i.descricao.toLowerCase().includes(busca);
+        return Number(m) == mesS && Number(a) == anoS && (i.descricao.toLowerCase().includes(busca) || i.categoria.toLowerCase().includes(busca));
     });
 
     const alerta = document.getElementById("alertaRecorrencia");
@@ -166,21 +188,32 @@ function atualizarTela() {
     else alerta.style.display = "none";
 
     const lista = document.getElementById("listaLancamentos");
+    const resumo = document.getElementById("resumoCategorias");
     let ent = 0, sai = 0, cats = {};
 
     lista.innerHTML = "";
+    resumo.innerHTML = ""; // Limpa o resumo de barras
+
     filtrados.forEach(i => {
         if (i.tipo === "entrada") ent += i.valor;
-        else { sai += i.valor; cats[i.categoria] = (cats[i.categoria] || 0) + i.valor; }
+        else {
+            sai += i.valor;
+            cats[i.categoria] = (cats[i.categoria] || 0) + i.valor;
+        }
+
+        // EXTRATO COM DATA E CATEGORIA VOLTANDO
         lista.innerHTML = `
             <div class="item">
                 <div class="item-topo">
                     <strong>${i.recorrente ? '📌 ' : ''}${i.descricao}</strong>
-                    <span class="${i.tipo === 'entrada' ? 'valor-entrada' : 'valor-saida'}">${formatarMoeda(i.valor)}</span>
+                    <span class="${i.tipo === 'entrada' ? 'valor-entrada' : 'valor-saida'}">
+                        ${formatarMoeda(i.valor)}
+                    </span>
                 </div>
-                <div class="item-acoes">
-                    <button class="btn-edit" onclick="window.prepararEdicao(${i.id})">Editar</button>
-                    <button class="btn-excluir" onclick="window.excluirLancamento(${i.id})">Excluir</button>
+                <small style="display: block; margin-bottom: 10px; color: #aaa;">${i.data} • ${i.categoria}</small>
+                <div class="item-acoes" style="display: flex; gap: 8px;">
+                    <button class="btn-edit" style="flex: 1; padding: 10px;" onclick="window.prepararEdicao(${i.id})">Editar</button>
+                    <button class="btn-excluir" style="flex: 1; padding: 10px;" onclick="window.excluirLancamento(${i.id})">Excluir</button>
                 </div>
             </div>` + lista.innerHTML;
     });
@@ -189,7 +222,20 @@ function atualizarTela() {
     document.getElementById("totalEntradas").innerText = formatarMoeda(ent);
     document.getElementById("totalSaidas").innerText = formatarMoeda(sai);
 
-    // LÓGICA DA META (Visual)
+    // BARRINHAS DE RESUMO (O QUE TINHA SUMIDO)
+    const maiorCat = Math.max(...Object.values(cats), 1);
+    Object.entries(cats).forEach(([c, v]) => {
+        const perc = (v / maiorCat) * 100;
+        resumo.innerHTML += `
+            <div class="categoria-linha" style="margin-bottom: 15px;">
+                <div style="display: flex; justify-content: space-between; margin-bottom: 5px;">
+                    <strong>${c}</strong> <span>${formatarMoeda(v)}</span>
+                </div>
+                <div class="barra"><div style="width: ${perc}%; background: #3b82f6; height: 8px; border-radius: 4px;"></div></div>
+            </div>`;
+    });
+
+    // LÓGICA DA META
     const meta = Number(document.getElementById("inputMeta").value) || 0;
     const progresso = document.getElementById("progress-bar");
     const status = document.getElementById("statusMeta");
@@ -201,10 +247,10 @@ function atualizarTela() {
         status.innerText = `${perc.toFixed(1)}% da meta utilizada`;
     } else {
         progresso.style.width = "0%";
-        status.innerText = "Sem meta definida.";
+        status.innerText = "Nenhuma meta definida.";
     }
 
-    desenharGraficos(filtrados, cats);
+    if (filtrados.length > 0) desenharGraficos(filtrados, cats);
 }
 
 configurarFiltros();
