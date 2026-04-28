@@ -1,6 +1,7 @@
 const App = {
     state: {
         user: null,
+        isRegistering: false,
         lancamentos: [],
         filtrados: [],
         idEdicao: null,
@@ -9,6 +10,21 @@ const App = {
 
     init() { this.configFilters(); },
 
+    // --- NOVA FUNÇÃO: ALTERNA LOGIN / CADASTRO ---
+    toggleAuthMode() {
+        this.state.isRegistering = !this.state.isRegistering;
+        const isReg = this.state.isRegistering;
+        
+        document.getElementById("auth-title").innerText = isReg ? "Criar Conta" : "Bem-vindo";
+        document.getElementById("group-nome").style.display = isReg ? "block" : "none";
+        document.getElementById("btn-entrar").innerText = isReg ? "Cadastrar Agora" : "Entrar";
+        document.getElementById("toggle-auth-text").innerHTML = isReg ? 
+            'Já tem conta? <a href="javascript:void(0)" onclick="App.toggleAuthMode()" style="color: #2563eb; text-decoration: none; font-weight: bold;">Fazer Login</a>' :
+            'Ainda não tem conta? <a href="javascript:void(0)" onclick="App.toggleAuthMode()" style="color: #2563eb; text-decoration: none; font-weight: bold;">Cadastre-se</a>';
+        
+        document.getElementById("login-error-msg").style.display = "none";
+    },
+
     setUser(user) {
         this.state.user = user;
         if (window.FB) {
@@ -16,6 +32,45 @@ const App = {
                 (data) => { this.state.lancamentos = data || []; this.updateUI(); },
                 (meta) => { if(meta !== null) document.getElementById("inputMeta").value = meta; this.updateUI(); }
             );
+        }
+    },
+
+    async handleAuthAction() {
+        const e = document.getElementById("email-login").value.trim();
+        const p = document.getElementById("pass-login").value;
+        const nome = document.getElementById("nome-cadastro").value.trim();
+        const errorDiv = document.getElementById("login-error-msg");
+        const btn = document.getElementById("btn-entrar");
+
+        if(!e || !p || (this.state.isRegistering && !nome)) {
+            errorDiv.innerText = "Preencha todos os campos!";
+            errorDiv.style.display = "block";
+            return;
+        }
+
+        try {
+            btn.innerText = "Processando...";
+            btn.disabled = true;
+            errorDiv.style.display = "none";
+            
+            if (this.state.isRegistering) {
+                const credential = await window.AuthActions.register(e, p);
+                // Salva o nome no perfil do usuário no Database
+                await window.FB.savePerfil(credential.user.uid, nome);
+            } else {
+                await window.AuthActions.login(e, p);
+            }
+        } catch (error) {
+            let msg = "Erro na autenticação.";
+            if (error.code === 'auth/email-already-in-use') msg = "Este e-mail já está em uso.";
+            if (error.code === 'auth/weak-password') msg = "Senha deve ter no mínimo 6 caracteres.";
+            if (error.code === 'auth/wrong-password') msg = "Senha incorreta!";
+            if (error.code === 'auth/too-many-requests') msg = "Muitas tentativas. Aguarde 5 min.";
+            
+            errorDiv.innerText = msg;
+            errorDiv.style.display = "block";
+            btn.innerText = this.state.isRegistering ? "Cadastrar Agora" : "Entrar";
+            btn.disabled = false;
         }
     },
 
@@ -28,39 +83,6 @@ const App = {
         } else {
             passInput.type = "password";
             eyeIcon.classList.replace("fa-eye-slash", "fa-eye");
-        }
-    },
-
-    async handleEmailAuth() {
-        const e = document.getElementById("email-login").value.trim();
-        const p = document.getElementById("pass-login").value;
-        const errorDiv = document.getElementById("login-error-msg");
-        const btn = document.getElementById("btn-entrar");
-
-        if(!e || !p) {
-            errorDiv.innerText = "Preencha e-mail e senha!";
-            errorDiv.style.display = "block";
-            return;
-        }
-
-        try {
-            btn.innerText = "Carregando...";
-            btn.disabled = true;
-            errorDiv.style.display = "none";
-            await window.AuthActions.email(e, p);
-        } catch (error) {
-            console.error("Erro Firebase:", error.code);
-            let msg = "Erro ao entrar. Verifique seus dados.";
-            
-            if (error.code === 'auth/too-many-requests') msg = "Muitas tentativas. Aguarde 5 minutos e tente de novo.";
-            else if (error.code === 'auth/wrong-password') msg = "Senha incorreta!";
-            else if (error.code === 'auth/invalid-email') msg = "E-mail inválido!";
-            else if (error.code === 'auth/weak-password') msg = "Senha deve ter 6 dígitos.";
-            
-            errorDiv.innerText = msg;
-            errorDiv.style.display = "block";
-            btn.innerText = "Entrar / Cadastrar";
-            btn.disabled = false;
         }
     },
 
@@ -83,7 +105,7 @@ const App = {
 
     handleSave() {
         const d = document.getElementById("descricao"), v = document.getElementById("valor"), t = document.getElementById("tipo"), c = document.getElementById("categoriaManual"), r = document.getElementById("recorrente");
-        if (!d.value || !v.value) return alert("Preencha os campos!");
+        if (!d.value || !v.value) return alert("Preencha!");
         const novo = { id: this.state.idEdicao || Date.now(), descricao: d.value.trim(), valor: Number(v.value), tipo: t.value, categoria: c.value || this.autoCategory(d.value, t.value), recorrente: r.checked, data: this.state.idEdicao ? this.state.lancamentos.find(x => x.id === this.state.idEdicao).data : new Date().toLocaleDateString("pt-BR") };
         if (this.state.idEdicao) { const idx = this.state.lancamentos.findIndex(x => x.id === this.state.idEdicao); this.state.lancamentos[idx] = novo; this.state.idEdicao = null; }
         else { this.state.lancamentos.push(novo); }
@@ -103,32 +125,14 @@ const App = {
     handleMetaChange() {
         const val = document.getElementById("inputMeta").value;
         if (this.state.user) window.FB.saveMeta(this.state.user.uid, Number(val));
-        this.updateUI();
     },
-
-    importRecurring() {
-        const m = document.getElementById("filtroMes").value, a = document.getElementById("filtroAno").value;
-        const novos = this.state.lancamentos.filter(i => i.recorrente === true).map(i => ({ ...i, id: Date.now() + Math.random(), data: `01/${m.padStart(2, '0')}/${a}` }));
-        this.state.lancamentos = [...this.state.lancamentos, ...novos];
-        this.persist();
-    },
-
-    prepareEdit(id) {
-        const i = this.state.lancamentos.find(x => x.id === id);
-        this.state.idEdicao = id;
-        document.getElementById("descricao").value = i.descricao; document.getElementById("valor").value = i.valor; document.getElementById("btnSalvar").innerText = "Salvar Alterações";
-        window.scrollTo({ top: 0, behavior: 'smooth' });
-    },
-
-    deleteItem(id) { if (confirm("Excluir?")) { this.state.lancamentos = this.state.lancamentos.filter(x => x.id !== id); this.persist(); } },
-    clearAll() { if (confirm("Zerar?")) { this.state.lancamentos = []; this.persist(); } },
 
     persist() { if (this.state.user) window.FB.save(this.state.user.uid, this.state.lancamentos); this.updateUI(); },
 
     updateUI() {
         const m = document.getElementById("filtroMes").value, a = document.getElementById("filtroAno").value, b = document.getElementById("inputBusca").value.toLowerCase();
         this.state.filtrados = this.state.lancamentos.filter(i => { const [, mes, ano] = i.data.split('/'); return Number(mes) == m && Number(ano) == a && i.descricao.toLowerCase().includes(b); });
-        UI.render(this.state.filtrados, this.state.lancamentos, this.state.charts);
+        UI.render(this.state.filtrados, this.state.charts);
     },
 
     exportPDF() {
@@ -145,7 +149,7 @@ const App = {
 };
 
 const UI = {
-    render(filtrados, total, charts) {
+    render(filtrados, charts) {
         let ent = 0, sai = 0, cats = {};
         const lista = document.getElementById("listaLancamentos"), resumo = document.getElementById("resumoCategorias");
         lista.innerHTML = ""; resumo.innerHTML = "";
@@ -154,7 +158,7 @@ const UI = {
             else { sai += i.valor; cats[i.categoria] = (cats[i.categoria] || 0) + i.valor; }
             lista.innerHTML = `
                 <div class="item">
-                    <div class="item-topo"><strong>${i.recorrente ? '📌 ' : ''}${i.descricao}</strong> <span class="${i.tipo === 'entrada' ? 'valor-entrada' : 'valor-saida'}">${i.valor.toLocaleString('pt-BR', {style:'currency', currency:'BRL'})}</span></div>
+                    <div class="item-topo"><strong>${i.descricao}</strong> <span class="${i.tipo === 'entrada' ? 'valor-entrada' : 'valor-saida'}">${i.valor.toLocaleString('pt-BR', {style:'currency', currency:'BRL'})}</span></div>
                     <small style="color:#aaa; display:block; margin-bottom:10px;">${i.data} • ${i.categoria}</small>
                     <div class="item-acoes" style="display:flex; gap:8px;">
                         <button onclick="App.prepareEdit(${i.id})" style="flex:1; padding:10px;">Editar</button>
@@ -163,12 +167,10 @@ const UI = {
                 </div>` + lista.innerHTML;
         });
         document.getElementById("saldo").innerText = (ent-sai).toLocaleString('pt-BR', {style:'currency', currency:'BRL'});
-        document.getElementById("totalEntradas").innerText = ent.toLocaleString('pt-BR', {style:'currency', currency:'BRL'});
-        document.getElementById("totalSaidas").innerText = sai.toLocaleString('pt-BR', {style:'currency', currency:'BRL'});
         const meta = Number(document.getElementById("inputMeta").value) || 0;
         const bar = document.getElementById("progress-bar"), stat = document.getElementById("statusMeta");
-        if (meta > 0) { const p = Math.min((sai/meta)*100, 100); bar.style.width = p+"%"; bar.style.backgroundColor = p > 90 ? "#ef4444" : "#22c55e"; stat.innerText = `${p.toFixed(1)}% da meta utilizada`; }
-        document.getElementById("alertaRecorrencia").style.display = (filtrados.length === 0 && total.some(i => i.recorrente)) ? "block" : "none";
+        if (meta > 0) { const p = Math.min((sai/meta)*100, 100); bar.style.width = p+"%"; bar.style.backgroundColor = p > 90 ? "#ef4444" : "#22c55e"; stat.innerText = `${p.toFixed(1)}% da meta`; }
+        
         Object.entries(cats).forEach(([c, v]) => {
             const perc = (v / Math.max(sai, 1)) * 100;
             resumo.innerHTML += `<div class="categoria-linha" style="margin-bottom:20px;"><div style="display:flex; justify-content:space-between; margin-bottom:8px;"><strong>${c} <small style="color:#00d4ff">(${perc.toFixed(1)}%)</small></strong> <span>${v.toLocaleString('pt-BR', {style:'currency', currency:'BRL'})}</span></div><div style="background:#334155; height:10px; border-radius:10px;"><div style="background:#00d4ff; width:${perc}%; height:100%; border-radius:10px; box-shadow:0 0 12px #00d4ff"></div></div></div>`;

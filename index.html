@@ -20,10 +20,16 @@
             <i class="fas fa-wallet" style="color: #fff; font-size: 24px;"></i>
         </div>
 
-        <h1 style="color: #fff; font-size: 1.8rem; margin-bottom: 8px; font-weight: 800;">Bem-vindo</h1>
-        <p style="color: #94a3b8; margin-bottom: 25px; font-size: 0.95rem;">ADS Secure Management System</p>
+        <h1 id="auth-title" style="color: #fff; font-size: 1.8rem; margin-bottom: 8px; font-weight: 800;">Bem-vindo</h1>
+        <p id="auth-subtitle" style="color: #94a3b8; margin-bottom: 25px; font-size: 0.95rem;">ADS Secure Management System</p>
         
         <div id="login-form" style="display: flex; flex-direction: column; gap: 16px;">
+            
+            <div id="group-nome" style="position: relative; text-align: left; display: none;">
+                <i class="fas fa-user" style="position: absolute; left: 15px; top: 15px; color: #64748b;"></i>
+                <input type="text" id="nome-cadastro" placeholder="Seu nome completo" style="width: 100%; padding: 14px 14px 14px 45px; border-radius: 12px; border: 1px solid #334155; background: rgba(15, 23, 42, 0.6); color: #fff; outline: none;">
+            </div>
+
             <div style="position: relative; text-align: left;">
                 <i class="fas fa-envelope" style="position: absolute; left: 15px; top: 15px; color: #64748b;"></i>
                 <input type="email" id="email-login" placeholder="E-mail profissional" style="width: 100%; padding: 14px 14px 14px 45px; border-radius: 12px; border: 1px solid #334155; background: rgba(15, 23, 42, 0.6); color: #fff; outline: none;">
@@ -37,14 +43,18 @@
 
             <div id="login-error-msg" style="color: #f87171; font-size: 0.85rem; display: none; background: rgba(248, 113, 113, 0.1); padding: 10px; border-radius: 8px; border: 1px solid rgba(248, 113, 113, 0.2);"></div>
 
-            <button id="btn-entrar" onclick="App.handleEmailAuth()" style="background: #2563eb; color: #fff; padding: 14px; border: none; border-radius: 12px; font-weight: 700; cursor: pointer;">
-                Entrar / Cadastrar
+            <button id="btn-entrar" onclick="App.handleAuthAction()" style="background: #2563eb; color: #fff; padding: 14px; border: none; border-radius: 12px; font-weight: 700; cursor: pointer;">
+                Entrar
             </button>
             
+            <p id="toggle-auth-text" style="color: #94a3b8; font-size: 0.85rem; margin-top: 5px;">
+                Ainda não tem conta? <a href="javascript:void(0)" onclick="App.toggleAuthMode()" style="color: #2563eb; text-decoration: none; font-weight: bold;">Cadastre-se</a>
+            </p>
+
             <div style="display: flex; align-items: center; margin: 5px 0;"><div style="flex: 1; height: 1px; background: #334155;"></div><span style="padding: 0 15px; color: #64748b; font-size: 0.8rem; font-weight: 600;">OU</span><div style="flex: 1; height: 1px; background: #334155;"></div></div>
             
             <button onclick="App.handleGoogleAuth()" style="background: #fff; color: #1e293b; padding: 12px; border: none; border-radius: 12px; font-weight: 700; cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 12px;">
-                <img src="https://www.gstatic.com/images/branding/product/1x/gsa_512dp.png" width="20"> Acessar com Google
+                <img src="https://www.gstatic.com/images/branding/product/1x/gsa_512dp.png" width="20"> Google
             </button>
         </div>
     </div>
@@ -69,11 +79,6 @@
       </div>
     </section>
 
-    <section class="cards">
-      <div class="card entrada"><span>Ganhos</span><strong id="totalEntradas">R$ 0,00</strong></div>
-      <div class="card saida"><span>Gastos</span><strong id="totalSaidas">R$ 0,00</strong></div>
-    </section>
-
     <div class="relatorios-box" style="display:flex; gap:10px; margin: 15px 0;">
       <button onclick="App.exportPDF()" style="flex:1; background:#dc2626; color:#fff; border:none; padding:12px; border-radius:8px; font-weight:bold;">📄 PDF</button>
       <button onclick="App.exportExcel()" style="flex:1; background:#16a34a; color:#fff; border:none; padding:12px; border-radius:8px; font-weight:bold;">📊 Excel</button>
@@ -81,7 +86,7 @@
 
     <section class="form-box">
       <h2 id="tituloForm">Novo Lançamento</h2>
-      <input type="text" id="descricao" placeholder="Descrição (ex: i30, iFood, Salgadinho)" />
+      <input type="text" id="descricao" placeholder="Descrição (ex: Peças i30, iFood)" />
       <input type="number" id="valor" placeholder="Valor R$" />
       <div class="form-row" style="display:flex; gap:10px; margin-bottom:10px;">
         <select id="tipo" style="flex:1;"><option value="saida">Gasto</option><option value="entrada">Entrada</option></select>
@@ -103,11 +108,6 @@
         <select id="filtroAno" onchange="App.updateUI()"></select>
       </div>
 
-      <div id="alertaRecorrencia" style="display:none; background:#2563eb; color:#fff; padding:15px; border-radius:8px; margin-bottom:20px; text-align:center;">
-        <p>Mês novo! Importar seus gastos fixos?</p>
-        <button onclick="App.importRecurring()" style="background:#fff; color:#2563eb; border:none; padding:8px 15px; border-radius:5px; margin-top:10px; font-weight:bold;">Sim, importar</button>
-      </div>
-
       <div class="graficos-grid" style="display:flex; flex-direction:column; gap:40px;">
         <div style="max-width:320px; margin:0 auto; width:100%;"><canvas id="meuGrafico"></canvas></div>
         <div style="width:100%; height:280px; background: rgba(255,255,255,0.03); border-radius:12px; padding:10px;"><canvas id="graficoLinha"></canvas></div>
@@ -116,7 +116,7 @@
     </section>
 
     <section class="extrato">
-      <input type="text" id="inputBusca" placeholder="🔍 Pesquisar no histórico..." oninput="App.updateUI()" style="margin-bottom:20px; width:100%; padding:12px; border-radius:8px; background:#1e293b; border:1px solid #334155; color:#fff;">
+      <input type="text" id="inputBusca" placeholder="🔍 Buscar..." oninput="App.updateUI()" style="margin-bottom:20px; width:100%; padding:12px; border-radius:8px; background:#1e293b; color:#fff; border:1px solid #334155;">
       <div class="extrato-topo" style="display:flex; justify-content:space-between; align-items:center; margin-bottom:15px;">
         <h2 style="margin:0;">Extrato</h2>
         <button onclick="App.clearAll()" style="background:#444; color:#fff; border:none; padding:6px 12px; border-radius:6px; font-size:0.8rem;">Limpar Tudo</button>
@@ -129,7 +129,7 @@
 
   <script type="module">
     import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
-    import { getDatabase, ref, set, onValue } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-database.js";
+    import { getDatabase, ref, set, onValue, get } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-database.js";
     import { getAuth, signInWithPopup, GoogleAuthProvider, signInWithEmailAndPassword, createUserWithEmailAndPassword, onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-auth.js";
 
     const firebaseConfig = {
@@ -148,20 +148,27 @@
     const provider = new GoogleAuthProvider();
 
     window.FB = {
+      db, auth,
       save: (uid, data) => set(ref(db, `users/${uid}/transacoes`), data),
       saveMeta: (uid, val) => set(ref(db, `users/${uid}/meta`), val),
+      savePerfil: (uid, nome) => set(ref(db, `users/${uid}/perfil`), { nome }),
       listen: (uid, cbData, cbMeta) => {
         onValue(ref(db, `users/${uid}/transacoes`), s => cbData(s.val()));
         onValue(ref(db, `users/${uid}/meta`), s => cbMeta(s.val()));
-      }
+      },
+      getPerfil: (uid) => get(ref(db, `users/${uid}/perfil`))
     };
 
-    onAuthStateChanged(auth, (user) => {
+    onAuthStateChanged(auth, async (user) => {
       if (user) {
         document.getElementById("auth-container").style.display = "none";
         document.getElementById("app-content").style.display = "block";
-        document.getElementById("user-welcome").innerText = `Olá, ${user.displayName || user.email.split('@')[0]}`;
         App.setUser(user);
+        
+        // Busca nome personalizado do Realtime Database
+        const snapshot = await window.FB.getPerfil(user.uid);
+        const nome = snapshot.exists() ? snapshot.val().nome : (user.displayName || user.email.split('@')[0]);
+        document.getElementById("user-welcome").innerText = `Olá, ${nome}`;
       } else {
         document.getElementById("auth-container").style.display = "flex";
         document.getElementById("app-content").style.display = "none";
@@ -170,16 +177,8 @@
 
     window.AuthActions = {
       google: () => signInWithPopup(auth, provider),
-      email: async (e, p) => {
-          try {
-              return await signInWithEmailAndPassword(auth, e, p);
-          } catch (error) {
-              if (error.code === 'auth/user-not-found' || error.code === 'auth/invalid-credential') {
-                  return await createUserWithEmailAndPassword(auth, e, p);
-              }
-              throw error;
-          }
-      },
+      login: (e, p) => signInWithEmailAndPassword(auth, e, p),
+      register: (e, p) => createUserWithEmailAndPassword(auth, e, p),
       logout: () => signOut(auth)
     };
   </script>
