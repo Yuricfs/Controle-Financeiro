@@ -74,41 +74,43 @@
     </section>
   </main>
 
-  <script src="script.js"></script>
+
 </body>
-<script type="module">
-  import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
-  import { getDatabase, ref, set, onValue } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-database.js";
+ <script src="script.js"></script>
 
-  // Cole aqui o seu firebaseConfig que você copiou no Passo 1
- const firebaseConfig = {
-  apiKey: "AIzaSyAPpIzV3uNNCl0A9lbGuOLjEiSqI0cTW5I",
-  authDomain: "controle-pessoal-bec71.firebaseapp.com",
-  databaseURL: "https://controle-pessoal-bec71-default-rtdb.firebaseio.com",
-  projectId: "controle-pessoal-bec71",
-  storageBucket: "controle-pessoal-bec71.firebasestorage.app",
-  messagingSenderId: "1091014611581",
-  appId: "1:1091014611581:web:9c154005dc64f14be81714",
-  measurementId: "G-1E3VZN227W"
-};
+  <script type="module">
+    import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
+    import { getDatabase, ref, set, onValue } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-database.js";
 
-  // Inicializa o Firebase
-const app = initializeApp(firebaseConfig);
-const analytics = getAnalytics(app);
+    const firebaseConfig = {
+      apiKey: "AIzaSyAPpIzV3uNNCl0A9lbGuOLjEiSqI0cTW5I",
+      authDomain: "controle-pessoal-bec71.firebaseapp.com",
+      databaseURL: "https://controle-pessoal-bec71-default-rtdb.firebaseio.com",
+      projectId: "controle-pessoal-bec71",
+      storageBucket: "controle-pessoal-bec71.firebasestorage.app",
+      messagingSenderId: "1091014611581",
+      appId: "1:1091014611581:web:9c154005dc64f14be81714",
+      measurementId: "G-1E3VZN227W"
+    };
 
-  // Exemplo de como SALVAR dados (substitua sua função de salvar do localStorage)
-  function salvarNoFirebase(dados) {
-    set(dbRef, dados);
-  }
+    // Inicializa o Firebase e o Banco de Dados
+    const app = initializeApp(firebaseConfig);
+    const db = getDatabase(app);
+    const dbRef = ref(db, 'transacoes/');
 
-  // Exemplo de como LER dados em tempo real
-  onValue(dbRef, (snapshot) => {
-    const data = snapshot.val();
-    if (data) {
-        // Aqui você chama a função que renderiza sua tabela/lista na tela
-        console.log("Dados atualizados:", data);
-        atualizarInterface(data); 
-    }
-  });
-</script>
+    // Cria a ponte para o seu script.js conseguir salvar
+    window.salvarNoFirebase = function(dados) {
+      set(dbRef, dados);
+    };
+
+    // Escuta mudanças no banco e avisa a interface
+    onValue(dbRef, (snapshot) => {
+      const data = snapshot.val();
+      // Verifica se a função existe no script.js antes de chamar
+      if (typeof window.atualizarInterface === 'function') {
+          window.atualizarInterface(data || []); 
+      }
+    });
+  </script>
+</body>
 </html>

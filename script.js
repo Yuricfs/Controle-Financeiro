@@ -1,3 +1,4 @@
+// 1. Iniciamos a lista (mantemos o localStorage para o app abrir rápido)
 let lancamentos = JSON.parse(localStorage.getItem("lancamentos")) || [];
 
 const categoriasAutomaticas = {
@@ -12,33 +13,34 @@ const categoriasAutomaticas = {
 };
 
 function formatarMoeda(valor) {
-  return valor.toLocaleString("pt-BR", {
-    style: "currency",
-    currency: "BRL"
-  });
+  return valor.toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
 }
 
 function descobrirCategoria(descricao, categoriaManual, tipo) {
   if (categoriaManual) return categoriaManual;
-
   if (tipo === "entrada") return "Renda";
-
   const texto = descricao.toLowerCase();
-
   for (const categoria in categoriasAutomaticas) {
-    const palavras = categoriasAutomaticas[categoria];
-
-    if (palavras.some(palavra => texto.includes(palavra))) {
-      return categoria;
-    }
+    if (categoriasAutomaticas[categoria].some(palavra => texto.includes(palavra))) return categoria;
   }
-
   return "Outros";
 }
 
+// --- AJUSTE 1: A FUNÇÃO SALVAR AGORA ENVIA PARA O FIREBASE ---
 function salvar() {
   localStorage.setItem("lancamentos", JSON.stringify(lancamentos));
+  
+  // Chama a função que criamos lá no index.html
+  if (typeof window.salvarNoFirebase === 'function') {
+    window.salvarNoFirebase(lancamentos);
+  }
 }
+
+// --- AJUSTE 2: FUNÇÃO PARA RECEBER DADOS DO FIREBASE E ATUALIZAR A TELA ---
+window.atualizarInterface = function(dadosVindosDoBanco) {
+  lancamentos = dadosVindosDoBanco || [];
+  atualizarTela();
+};
 
 function adicionarLancamento() {
   const descricao = document.getElementById("descricao").value.trim();
@@ -51,51 +53,42 @@ function adicionarLancamento() {
     return;
   }
 
-  const categoria = descobrirCategoria(descricao, categoriaManual, tipo);
-
   const lancamento = {
     id: Date.now(),
     descricao,
     valor,
     tipo,
-    categoria,
+    categoria: descobrirCategoria(descricao, categoriaManual, tipo),
     data: new Date().toLocaleDateString("pt-BR")
   };
 
   lancamentos.push(lancamento);
-
   salvar();
   atualizarTela();
 
   document.getElementById("descricao").value = "";
   document.getElementById("valor").value = "";
-  document.getElementById("categoriaManual").value = "";
-  document.getElementById("tipo").value = "saida";
 }
 
-function excluirLancamento(id) {
+// --- AJUSTE 3: EXPOR FUNÇÕES PARA O HTML (Necessário para onclick funcionar) ---
+window.adicionarLancamento = adicionarLancamento;
+window.excluirLancamento = function(id) {
   lancamentos = lancamentos.filter(item => item.id !== id);
   salvar();
   atualizarTela();
-}
-
-function limparTudo() {
-  const confirmar = confirm("Tem certeza que deseja apagar tudo?");
-
-  if (!confirmar) return;
-
-  lancamentos = [];
-  salvar();
-  atualizarTela();
-}
+};
+window.limparTudo = function() {
+  if (confirm("Tem certeza que deseja apagar tudo?")) {
+    lancamentos = [];
+    salvar();
+    atualizarTela();
+  }
+};
 
 function atualizarTela() {
   const lista = document.getElementById("listaLancamentos");
   const resumo = document.getElementById("resumoCategorias");
-
-  let totalEntradas = 0;
-  let totalSaidas = 0;
-  let categorias = {};
+  let totalEntradas = 0, totalSaidas = 0, categorias = {};
 
   lista.innerHTML = "";
   resumo.innerHTML = "";
@@ -115,40 +108,25 @@ function atualizarTela() {
       <div class="item">
         <div class="item-topo">
           <strong>${item.descricao}</strong>
-          <strong class="${classeValor}">
-            ${sinal} ${formatarMoeda(item.valor)}
-          </strong>
+          <strong class="${classeValor}">${sinal} ${formatarMoeda(item.valor)}</strong>
         </div>
-
         <small>${item.data} • ${item.categoria}</small>
-
-        <button class="btn-excluir" onclick="excluirLancamento(${item.id})">
-          Excluir
-        </button>
-      </div>
-    ` + lista.innerHTML;
+        <button class="btn-excluir" onclick="window.excluirLancamento(${item.id})">Excluir</button>
+      </div>` + lista.innerHTML;
   });
 
-  const saldo = totalEntradas - totalSaidas;
-
-  document.getElementById("saldo").innerText = formatarMoeda(saldo);
+  document.getElementById("saldo").innerText = formatarMoeda(totalEntradas - totalSaidas);
   document.getElementById("totalEntradas").innerText = formatarMoeda(totalEntradas);
   document.getElementById("totalSaidas").innerText = formatarMoeda(totalSaidas);
 
   const maiorCategoria = Math.max(...Object.values(categorias), 1);
-
   Object.entries(categorias).forEach(([categoria, valor]) => {
     const porcentagem = (valor / maiorCategoria) * 100;
-
     resumo.innerHTML += `
       <div class="categoria-linha">
-        <strong>${categoria}</strong>
-        <small>${formatarMoeda(valor)}</small>
-        <div class="barra">
-          <div style="width:${porcentagem}%"></div>
-        </div>
-      </div>
-    `;
+        <strong>${categoria}</strong> <small>${formatarMoeda(valor)}</small>
+        <div class="barra"><div style="width:${porcentagem}%"></div></div>
+      </div>`;
   });
 
   if (lancamentos.length === 0) {
