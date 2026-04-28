@@ -115,7 +115,17 @@ function atualizarGrafico(categorias) {
 function atualizarTela() {
   const lista = document.getElementById("listaLancamentos");
   const resumo = document.getElementById("resumoCategorias");
-  let totalEntradas = 0, totalSaidas = 0, categorias = {};
+
+  // Se o site ainda não carregou os elementos, ele para aqui e não dá erro
+  if (!lista || !resumo) return;
+
+  let totalEntradas = 0;
+  let totalSaidas = 0;
+  let categorias = {};
+
+  lista.innerHTML = "";
+  resumo.innerHTML = "";
+  // ... (restante da função)
 
   lista.innerHTML = "";
   resumo.innerHTML = "";
