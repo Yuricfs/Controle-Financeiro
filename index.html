@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Controle Financeiro Pro - ADS Full</title>
+  <title>Financeiro Pro | Dashboard</title>
   <link rel="icon" href="data:,">
   <link rel="stylesheet" href="style.css" />
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
@@ -14,113 +14,136 @@
 </head>
 <body>
 
-  <div id="auth-container" style="display: flex; align-items: center; justify-content: center; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: radial-gradient(circle at top right, #1e293b, #0f172a); z-index: 9999; padding: 20px;">
-    <div class="login-card" style="width: 100%; max-width: 400px; background: rgba(30, 41, 59, 0.7); backdrop-filter: blur(12px); padding: 40px; border-radius: 24px; border: 1px solid rgba(255,255,255,0.1); box-shadow: 0 25px 50px -12px rgba(0,0,0,0.5); text-align: center;">
-        <div style="width: 60px; height: 60px; background: #2563eb; border-radius: 16px; display: flex; align-items: center; justify-content: center; margin: 0 auto 20px; box-shadow: 0 0 20px rgba(37, 99, 235, 0.4);">
-            <i class="fas fa-wallet" style="color: #fff; font-size: 24px;"></i>
-        </div>
-        <h1 id="auth-title" style="color: #fff; font-size: 1.8rem; margin-bottom: 8px; font-weight: 800;">Bem-vindo</h1>
-        <p id="auth-subtitle" style="color: #94a3b8; margin-bottom: 25px; font-size: 0.95rem;">ADS Secure Management System</p>
-        <div id="login-form" style="display: flex; flex-direction: column; gap: 16px;">
-            <div id="group-nome" style="position: relative; text-align: left; display: none;">
-                <i class="fas fa-user" style="position: absolute; left: 15px; top: 15px; color: #64748b;"></i>
-                <input type="text" id="nome-cadastro" placeholder="Seu nome completo" style="width: 100%; padding: 14px 14px 14px 45px; border-radius: 12px; border: 1px solid #334155; background: rgba(15, 23, 42, 0.6); color: #fff; outline: none;">
+  <div id="auth-container">
+    <div class="login-card">
+        <div class="login-icon"><i class="fas fa-wallet"></i></div>
+        <h1 id="auth-title">Bem-vindo</h1>
+        <p id="auth-subtitle">Acesse seu controle financeiro seguro</p>
+        
+        <div id="login-form">
+            <div id="group-nome" class="input-icon-group" style="display: none;">
+                <i class="fas fa-user"></i>
+                <input type="text" id="nome-cadastro" placeholder="Nome Completo">
             </div>
-            <div style="position: relative; text-align: left;">
-                <i class="fas fa-envelope" style="position: absolute; left: 15px; top: 15px; color: #64748b;"></i>
-                <input type="email" id="email-login" placeholder="E-mail" style="width: 100%; padding: 14px 14px 14px 45px; border-radius: 12px; border: 1px solid #334155; background: rgba(15, 23, 42, 0.6); color: #fff; outline: none;">
+            <div class="input-icon-group">
+                <i class="fas fa-envelope"></i>
+                <input type="email" id="email-login" placeholder="E-mail">
             </div>
-            <div style="position: relative; text-align: left;">
-                <i class="fas fa-lock" style="position: absolute; left: 15px; top: 15px; color: #64748b;"></i>
-                <input type="password" id="pass-login" placeholder="Senha" style="width: 100%; padding: 14px 45px 14px 45px; border-radius: 12px; border: 1px solid #334155; background: rgba(15, 23, 42, 0.6); color: #fff; outline: none;">
-                <i class="fas fa-eye" id="togglePassword" onclick="App.togglePasswordVisibility()" style="position: absolute; right: 15px; top: 15px; color: #64748b; cursor: pointer;"></i>
+            <div class="input-icon-group">
+                <i class="fas fa-lock"></i>
+                <input type="password" id="pass-login" placeholder="Senha">
+                <i class="fas fa-eye" id="togglePassword" onclick="App.togglePasswordVisibility()"></i>
             </div>
-            <div id="login-error-msg" style="color: #f87171; font-size: 0.85rem; display: none; background: rgba(248, 113, 113, 0.1); padding: 10px; border-radius: 8px; border: 1px solid rgba(248, 113, 113, 0.2);"></div>
-            <button id="btn-entrar" onclick="App.handleAuthAction()" style="background: #2563eb; color: #fff; padding: 14px; border: none; border-radius: 12px; font-weight: 700; cursor: pointer;">Entrar</button>
-            <p id="toggle-auth-text" style="color: #94a3b8; font-size: 0.85rem; margin-top: 5px;">Ainda não tem conta? <a href="javascript:void(0)" onclick="App.toggleAuthMode()" style="color: #2563eb; text-decoration: none; font-weight: bold;">Cadastre-se</a></p>
-            <div style="display: flex; align-items: center; margin: 5px 0;"><div style="flex: 1; height: 1px; background: #334155;"></div><span style="padding: 0 15px; color: #64748b; font-size: 0.8rem;">OU</span><div style="flex: 1; height: 1px; background: #334155;"></div></div>
-            <button onclick="App.handleGoogleAuth()" style="background: #fff; color: #1e293b; padding: 12px; border: none; border-radius: 12px; font-weight: 700; cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 12px;">
-                <img src="https://www.gstatic.com/images/branding/product/1x/gsa_512dp.png" width="20"> Google
+            <div id="login-error-msg"></div>
+            <button id="btn-entrar" class="btn-primary" onclick="App.handleAuthAction()">Entrar</button>
+            <p id="toggle-auth-text">Ainda não tem conta? <a href="#" onclick="App.toggleAuthMode()">Cadastre-se</a></p>
+            <div class="divider"><span>OU</span></div>
+            <button class="btn-google" onclick="App.handleGoogleAuth()">
+                <img src="https://www.gstatic.com/images/branding/product/1x/gsa_512dp.png" width="18"> Entrar com Google
             </button>
         </div>
     </div>
   </div>
 
-  <main id="app-content" class="app" style="display: none;">
-    <section class="header" style="display: flex; justify-content: space-between; align-items: flex-start;">
-      <div>
-        <h1>Controle Financeiro</h1>
-        <p id="user-welcome" style="color: #94a3b8; font-size: 0.9rem;"></p>
+  <main id="app-content" style="display: none;">
+    <header class="main-header">
+      <div class="user-info">
+        <h1>Financeiro<span>Pro</span></h1>
+        <p id="user-welcome"></p>
       </div>
-      <button onclick="App.handleLogout()" style="background: transparent; color: #ef4444; border: 1px solid #ef4444; padding: 5px 12px; border-radius: 6px; cursor: pointer; font-size: 0.8rem;">Sair</button>
-    </section>
+      <button class="btn-logout" onclick="App.handleLogout()"><i class="fas fa-sign-out-alt"></i> Sair</button>
+    </header>
 
-    <section class="cards">
-      <div class="card"><span>Saldo do Mês</span><strong id="saldo">R$ 0,00</strong></div>
-      <div class="card meta-container">
-        <span>Meta Mensal</span>
-        <input type="number" id="inputMeta" placeholder="R$ 0,00" onchange="App.handleMetaChange()">
-        <div class="progress-bg"><div id="progress-bar"></div></div>
-        <small id="statusMeta"></small>
-      </div>
-    </section>
+    <div class="dashboard-grid">
+      
+      <aside class="sidebar">
+        <div class="card main-balance">
+          <span>Saldo Disponível</span>
+          <strong id="saldo">R$ 0,00</strong>
+        </div>
 
-    <section class="cards" style="grid-template-columns: 1fr 1fr; display: grid; gap: 12px;">
-      <div class="card entrada"><span>Ganhos</span><strong id="totalEntradas" style="font-size: 1.2rem;">R$ 0,00</strong></div>
-      <div class="card saida"><span>Gastos</span><strong id="totalSaidas" style="font-size: 1.2rem;">R$ 0,00</strong></div>
-    </section>
+        <div class="summary-cards">
+          <div class="card entrada">
+            <span><i class="fas fa-arrow-up"></i> Ganhos</span>
+            <strong id="totalEntradas">R$ 0,00</strong>
+          </div>
+          <div class="card saida">
+            <span><i class="fas fa-arrow-down"></i> Gastos</span>
+            <strong id="totalSaidas">R$ 0,00</strong>
+          </div>
+        </div>
 
-    <div class="relatorios-box" style="display:flex; gap:10px; margin: 15px 0;">
-      <button onclick="App.exportPDF()" style="flex:1; background:#dc2626; color:#fff; border:none; padding:12px; border-radius:8px; font-weight:bold;">📄 PDF</button>
-      <button onclick="App.exportExcel()" style="flex:1; background:#16a34a; color:#fff; border:none; padding:12px; border-radius:8px; font-weight:bold;">📊 Excel</button>
+        <div class="card meta-box">
+          <div class="meta-header">
+            <span><i class="fas fa-bullseye"></i> Meta do Mês</span>
+            <input type="number" id="inputMeta" placeholder="Definir R$" onchange="App.handleMetaChange()">
+          </div>
+          <div class="progress-container">
+            <div id="progress-bar"></div>
+          </div>
+          <small id="statusMeta"></small>
+        </div>
+
+        <div class="card form-container">
+          <h3>Novo Lançamento</h3>
+          <div class="form-group">
+            <input type="text" id="descricao" placeholder="Descrição (ex: Peças i30)">
+            <input type="number" id="valor" placeholder="Valor R$">
+            <div class="input-row">
+              <select id="tipo"><option value="saida">Gasto</option><option value="entrada">Entrada</option></select>
+              <select id="categoriaManual">
+                <option value="">Categoria Auto</option>
+                <option>Alimentação</option><option>Transporte</option><option>Mercado</option><option>Lazer</option><option>Casa</option><option>Renda</option>
+              </select>
+            </div>
+            <label class="check-container">
+              <input type="checkbox" id="recorrente"> Gasto Fixo Mensal
+            </label>
+            <button class="btn-add" onclick="App.handleSave()"><i class="fas fa-plus"></i> Salvar</button>
+          </div>
+        </div>
+      </aside>
+
+      <section class="main-content">
+        <div class="card report-actions">
+            <button onclick="App.exportPDF()" class="btn-pdf"><i class="fas fa-file-pdf"></i> Exportar PDF</button>
+            <button onclick="App.exportExcel()" class="btn-excel"><i class="fas fa-file-excel"></i> Exportar Excel</button>
+        </div>
+
+        <div class="dashboard-visuals">
+          <div class="card chart-box">
+            <h3>Divisão de Gastos</h3>
+            <canvas id="meuGrafico"></canvas>
+          </div>
+          <div class="card chart-box">
+            <h3>Fluxo de Caixa Diário</h3>
+            <canvas id="graficoLinha"></canvas>
+          </div>
+        </div>
+
+        <div class="card category-list">
+          <h3>Gastos por Categoria</h3>
+          <div id="resumoCategorias"></div>
+        </div>
+
+        <div class="card history-container">
+          <div class="history-header">
+            <h3>Histórico de Lançamentos</h3>
+            <div class="history-filters">
+              <select id="filtroMes" onchange="App.updateUI()"></select>
+              <select id="filtroAno" onchange="App.updateUI()"></select>
+            </div>
+          </div>
+          <input type="text" id="inputBusca" placeholder="Pesquisar descrição..." oninput="App.updateUI()" class="search-input">
+          <div id="listaLancamentos"></div>
+          <button class="btn-clear" onclick="App.clearAll()">Zerar Dados do Mês</button>
+        </div>
+      </section>
+
     </div>
-
-    <section class="form-box">
-      <h2 id="tituloForm">Novo Lançamento</h2>
-      <input type="text" id="descricao" placeholder="Ex: Gasolina i30, Almoço" />
-      <input type="number" id="valor" placeholder="Valor R$" />
-      <div class="form-row" style="display:flex; gap:10px; margin-bottom:10px;">
-        <select id="tipo" style="flex:1;"><option value="saida">Gasto</option><option value="entrada">Entrada</option></select>
-        <select id="categoriaManual" style="flex:1;">
-          <option value="">Automática</option>
-          <option>Alimentação</option><option>Transporte</option><option>Mercado</option>
-          <option>Lazer</option><option>Casa</option><option>Renda</option>
-        </select>
-      </div>
-      <label style="color:#fff; display:flex; align-items:center; gap:8px; margin-bottom:15px; font-size:0.85rem;">
-        <input type="checkbox" id="recorrente" style="width:auto;"> Gasto Fixo (Recorrente)
-      </label>
-      <button id="btnSalvar" onclick="App.handleSave()" style="width:100%; padding:15px; background:#2563eb; color:#fff; border:none; border-radius:8px; font-weight:bold;">Adicionar</button>
-    </section>
-
-    <section class="dashboard">
-      <div class="filtros-topo" style="display:flex; gap:10px; margin-bottom:25px; justify-content:center;">
-        <select id="filtroMes" onchange="App.updateUI()"></select>
-        <select id="filtroAno" onchange="App.updateUI()"></select>
-      </div>
-      <div id="alertaRecorrencia" style="display:none; background:#2563eb; color:#fff; padding:15px; border-radius:8px; margin-bottom:20px; text-align:center;">
-        <p>Mês novo! Importar gastos fixos?</p>
-        <button onclick="App.importRecurring()" style="background:#fff; color:#2563eb; border:none; padding:8px 15px; border-radius:5px; margin-top:10px; font-weight:bold;">Sim, importar</button>
-      </div>
-      <div class="graficos-grid" style="display:flex; flex-direction:column; gap:40px;">
-        <div style="max-width:320px; margin:0 auto; width:100%;"><canvas id="meuGrafico"></canvas></div>
-        <div style="width:100%; height:280px; background: rgba(255,255,255,0.03); border-radius:12px; padding:10px;"><canvas id="graficoLinha"></canvas></div>
-      </div>
-      <div id="resumoCategorias" style="margin-top:30px;"></div>
-    </section>
-
-    <section class="extrato">
-      <input type="text" id="inputBusca" placeholder="🔍 Buscar..." oninput="App.updateUI()" style="margin-bottom:20px; width:100%; padding:12px; border-radius:8px; background:#1e293b; color:#fff; border:1px solid #334155;">
-      <div class="extrato-topo" style="display:flex; justify-content:space-between; align-items:center; margin-bottom:15px;">
-        <h2 style="margin:0;">Extrato</h2>
-        <button onclick="App.clearAll()" style="background:#444; color:#fff; border:none; padding:6px 12px; border-radius:6px; font-size:0.8rem;">Limpar Tudo</button>
-      </div>
-      <div id="listaLancamentos"></div>
-    </section>
   </main>
 
   <script src="script.js"></script>
-
   <script type="module">
     import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
     import { getDatabase, ref, set, onValue, get } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-database.js";
@@ -142,7 +165,6 @@
     const provider = new GoogleAuthProvider();
 
     window.FB = {
-      db, auth,
       save: (uid, data) => set(ref(db, `users/${uid}/transacoes`), data),
       saveMeta: (uid, val) => set(ref(db, `users/${uid}/meta`), val),
       savePerfil: (uid, nome) => set(ref(db, `users/${uid}/perfil`), { nome }),
@@ -160,7 +182,7 @@
         App.setUser(user);
         const snapshot = await window.FB.getPerfil(user.uid);
         const nome = snapshot.exists() ? snapshot.val().nome : (user.displayName || user.email.split('@')[0]);
-        document.getElementById("user-welcome").innerText = `Olá, ${nome}`;
+        document.getElementById("user-welcome").innerText = `Bem-vindo, ${nome}`;
       } else {
         document.getElementById("auth-container").style.display = "flex";
         document.getElementById("app-content").style.display = "none";

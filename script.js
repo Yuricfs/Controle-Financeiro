@@ -15,21 +15,11 @@ const App = {
         const isReg = this.state.isRegistering;
         document.getElementById("auth-title").innerText = isReg ? "Criar Conta" : "Bem-vindo";
         document.getElementById("group-nome").style.display = isReg ? "block" : "none";
-        document.getElementById("btn-entrar").innerText = isReg ? "Cadastrar Agora" : "Entrar";
+        document.getElementById("btn-entrar").innerText = isReg ? "Cadastrar" : "Entrar";
         document.getElementById("toggle-auth-text").innerHTML = isReg ? 
-            'Já tem conta? <a href="javascript:void(0)" onclick="App.toggleAuthMode()" style="color: #2563eb; text-decoration: none; font-weight: bold;">Fazer Login</a>' :
-            'Ainda não tem conta? <a href="javascript:void(0)" onclick="App.toggleAuthMode()" style="color: #2563eb; text-decoration: none; font-weight: bold;">Cadastre-se</a>';
+            'Já tem conta? <a href="#" onclick="App.toggleAuthMode()">Login</a>' :
+            'Não tem conta? <a href="#" onclick="App.toggleAuthMode()">Cadastre-se</a>';
         document.getElementById("login-error-msg").style.display = "none";
-    },
-
-    setUser(user) {
-        this.state.user = user;
-        if (window.FB) {
-            window.FB.listen(user.uid, 
-                (data) => { this.state.lancamentos = data || []; this.updateUI(); },
-                (meta) => { if(meta !== null) document.getElementById("inputMeta").value = meta; this.updateUI(); }
-            );
-        }
     },
 
     async handleAuthAction() {
@@ -46,7 +36,7 @@ const App = {
         }
 
         try {
-            btn.innerText = "Processando...";
+            btn.innerText = "Aguarde...";
             btn.disabled = true;
             errorDiv.style.display = "none";
             
@@ -58,13 +48,11 @@ const App = {
             }
         } catch (error) {
             let msg = "Erro na autenticação.";
-            if (error.code === 'auth/email-already-in-use') msg = "Este e-mail já está em uso.";
-            if (error.code === 'auth/weak-password') msg = "Senha deve ter no mínimo 6 caracteres.";
             if (error.code === 'auth/wrong-password') msg = "Senha incorreta!";
             if (error.code === 'auth/too-many-requests') msg = "Muitas tentativas. Aguarde 5 min.";
             errorDiv.innerText = msg;
             errorDiv.style.display = "block";
-            btn.innerText = this.state.isRegistering ? "Cadastrar Agora" : "Entrar";
+            btn.innerText = this.state.isRegistering ? "Cadastrar" : "Entrar";
             btn.disabled = false;
         }
     },
@@ -81,40 +69,40 @@ const App = {
         }
     },
 
-    configFilters() {
-        const sMes = document.getElementById("filtroMes"), sAno = document.getElementById("filtroAno");
-        if (sMes && sMes.options.length === 0) {
-            const meses = ["Janeiro", "Fevereiro", "Março", "Abril", "Maio", "Junho", "Julho", "Agosto", "Setembro", "Outubro", "Novembro", "Dezembro"];
-            meses.forEach((m, i) => sMes.add(new Option(m, i + 1)));
-            sMes.value = new Date().getMonth() + 1;
-        }
-        if (sAno && sAno.options.length === 0) {
-            const anoAtual = new Date().getFullYear();
-            for (let a = anoAtual - 1; a <= anoAtual + 1; a++) sAno.add(new Option(a, a));
-            sAno.value = anoAtual;
+    setUser(user) {
+        this.state.user = user;
+        if (window.FB) {
+            window.FB.listen(user.uid, 
+                (data) => { this.state.lancamentos = data || []; this.updateUI(); },
+                (meta) => { if(meta !== null) document.getElementById("inputMeta").value = meta; this.updateUI(); }
+            );
         }
     },
 
-    handleGoogleAuth() { window.AuthActions.google(); },
-    handleLogout() { window.AuthActions.logout(); },
+    configFilters() {
+        const sMes = document.getElementById("filtroMes"), sAno = document.getElementById("filtroAno");
+        const meses = ["Janeiro", "Fevereiro", "Março", "Abril", "Maio", "Junho", "Julho", "Agosto", "Setembro", "Outubro", "Novembro", "Dezembro"];
+        meses.forEach((m, i) => sMes.add(new Option(m, i + 1)));
+        sMes.value = new Date().getMonth() + 1;
+        const anoAtual = new Date().getFullYear();
+        for (let a = anoAtual - 1; a <= anoAtual + 1; a++) sAno.add(new Option(a, a));
+        sAno.value = anoAtual;
+    },
 
     handleSave() {
         const d = document.getElementById("descricao"), v = document.getElementById("valor"), t = document.getElementById("tipo"), c = document.getElementById("categoriaManual"), r = document.getElementById("recorrente");
-        if (!d.value || !v.value) return alert("Preencha!");
-        const novo = { id: this.state.idEdicao || Date.now(), descricao: d.value.trim(), valor: Number(v.value), tipo: t.value, categoria: c.value || this.autoCategory(d.value, t.value), recorrente: r.checked, data: this.state.idEdicao ? this.state.lancamentos.find(x => x.id === this.state.idEdicao).data : new Date().toLocaleDateString("pt-BR") };
-        if (this.state.idEdicao) { const idx = this.state.lancamentos.findIndex(x => x.id === this.state.idEdicao); this.state.lancamentos[idx] = novo; this.state.idEdicao = null; }
-        else { this.state.lancamentos.push(novo); }
+        if (!d.value || !v.value) return;
+        const novo = { id: Date.now(), descricao: d.value.trim(), valor: Number(v.value), tipo: t.value, categoria: c.value || this.autoCategory(d.value, t.value), recorrente: r.checked, data: new Date().toLocaleDateString("pt-BR") };
+        this.state.lancamentos.push(novo);
         this.persist();
         d.value = ""; v.value = ""; r.checked = false;
-        document.getElementById("btnSalvar").innerText = "Adicionar";
-        document.getElementById("tituloForm").innerText = "Novo Lançamento";
     },
 
     autoCategory(desc, tipo) {
         if (tipo === "entrada") return "Renda";
         const t = desc.toLowerCase();
-        if (t.includes("ifood") || t.includes("salgado") || t.includes("comida")) return "Alimentação";
-        if (t.includes("uber") || t.includes("posto") || t.includes("gasolina") || t.includes("i30")) return "Transporte";
+        if (t.includes("ifood") || t.includes("comida")) return "Alimentação";
+        if (t.includes("i30") || t.includes("uber") || t.includes("gasolina")) return "Transporte";
         return "Outros";
     },
 
@@ -123,39 +111,24 @@ const App = {
         if (this.state.user) window.FB.saveMeta(this.state.user.uid, Number(val));
     },
 
-    importRecurring() {
-        const m = document.getElementById("filtroMes").value, a = document.getElementById("filtroAno").value;
-        const novos = this.state.lancamentos.filter(i => i.recorrente === true).map(i => ({ ...i, id: Date.now() + Math.random(), data: `01/${m.padStart(2, '0')}/${a}` }));
-        this.state.lancamentos = [...this.state.lancamentos, ...novos];
-        this.persist();
-    },
-
-    prepareEdit(id) {
-        const i = this.state.lancamentos.find(x => x.id === id);
-        this.state.idEdicao = id;
-        document.getElementById("descricao").value = i.descricao; document.getElementById("valor").value = i.valor; 
-        document.getElementById("tipo").value = i.tipo; document.getElementById("categoriaManual").value = i.categoria;
-        document.getElementById("btnSalvar").innerText = "Salvar Alterações";
-        document.getElementById("tituloForm").innerText = "Editando...";
-        window.scrollTo({ top: 0, behavior: 'smooth' });
-    },
-
-    deleteItem(id) { if (confirm("Excluir?")) { this.state.lancamentos = this.state.lancamentos.filter(x => x.id !== id); this.persist(); } },
-    clearAll() { if (confirm("Zerar tudo?")) { this.state.lancamentos = []; this.persist(); } },
-
+    handleGoogleAuth() { window.AuthActions.google(); },
+    handleLogout() { window.AuthActions.logout(); },
     persist() { if (this.state.user) window.FB.save(this.state.user.uid, this.state.lancamentos); this.updateUI(); },
 
     updateUI() {
         const m = document.getElementById("filtroMes").value, a = document.getElementById("filtroAno").value, b = document.getElementById("inputBusca").value.toLowerCase();
-        this.state.filtrados = this.state.lancamentos.filter(i => { const [, mes, ano] = i.data.split('/'); return Number(mes) == m && Number(ano) == a && i.descricao.toLowerCase().includes(b); });
-        UI.render(this.state.filtrados, this.state.lancamentos, this.state.charts);
+        this.state.filtrados = this.state.lancamentos.filter(i => { 
+            const [, mes, ano] = i.data.split('/'); 
+            return Number(mes) == m && Number(ano) == a && i.descricao.toLowerCase().includes(b); 
+        });
+        UI.render(this.state.filtrados, this.state.charts);
     },
 
     exportPDF() {
         const { jsPDF } = window.jspdf; const doc = new jsPDF();
         const rows = this.state.filtrados.map(i => [i.data, i.descricao, i.categoria, i.valor.toLocaleString('pt-BR', {style:'currency', currency:'BRL'})]);
-        doc.text("Extrato Financeiro", 14, 15); doc.autoTable({ head: [['Data', 'Item', 'Categoria', 'Valor']], body: rows, startY: 20 });
-        doc.save("extrato.pdf");
+        doc.text("Extrato", 14, 15); doc.autoTable({ head: [['Data', 'Item', 'Categoria', 'Valor']], body: rows, startY: 20 });
+        doc.save("financeiro.pdf");
     },
 
     exportExcel() {
@@ -165,7 +138,7 @@ const App = {
 };
 
 const UI = {
-    render(filtrados, total, charts) {
+    render(filtrados, charts) {
         let ent = 0, sai = 0, cats = {};
         const lista = document.getElementById("listaLancamentos"), resumo = document.getElementById("resumoCategorias");
         lista.innerHTML = ""; resumo.innerHTML = "";
@@ -173,13 +146,17 @@ const UI = {
         filtrados.forEach(i => {
             if (i.tipo === "entrada") ent += i.valor;
             else { sai += i.valor; cats[i.categoria] = (cats[i.categoria] || 0) + i.valor; }
+            
             lista.innerHTML = `
                 <div class="item">
-                    <div class="item-topo"><strong>${i.descricao}</strong> <span class="${i.tipo === 'entrada' ? 'valor-entrada' : 'valor-saida'}">${i.valor.toLocaleString('pt-BR', {style:'currency', currency:'BRL'})}</span></div>
-                    <small style="color:#aaa; display:block; margin-bottom:10px;">${i.data} • ${i.categoria}</small>
-                    <div class="item-acoes" style="display:flex; gap:8px;">
-                        <button onclick="App.prepareEdit(${i.id})" style="flex:1; padding:10px;">Editar</button>
-                        <button onclick="App.deleteItem(${i.id})" style="flex:1; background:#444; padding:10px;">Excluir</button>
+                    <div class="item-info">
+                        <strong>${i.descricao}</strong>
+                        <small>${i.data} • ${i.categoria}</small>
+                    </div>
+                    <div class="item-amount">
+                        <span class="${i.tipo === 'entrada' ? 'valor-entrada' : 'valor-saida'}">
+                            ${i.tipo === 'entrada' ? '+' : '-'}${i.valor.toLocaleString('pt-BR', {style:'currency', currency:'BRL'})}
+                        </span>
                     </div>
                 </div>` + lista.innerHTML;
         });
@@ -190,13 +167,21 @@ const UI = {
 
         const meta = Number(document.getElementById("inputMeta").value) || 0;
         const bar = document.getElementById("progress-bar"), stat = document.getElementById("statusMeta");
-        if (meta > 0) { const p = Math.min((sai/meta)*100, 100); bar.style.width = p+"%"; bar.style.backgroundColor = p > 90 ? "#ef4444" : "#22c55e"; stat.innerText = `${p.toFixed(1)}% da meta`; }
+        if (meta > 0) { 
+            const p = Math.min((sai/meta)*100, 100); 
+            bar.style.width = p+"%"; 
+            stat.innerText = `${p.toFixed(1)}% da meta atingida`;
+        }
         
-        document.getElementById("alertaRecorrencia").style.display = (filtrados.length === 0 && total.some(i => i.recorrente)) ? "block" : "none";
-
         Object.entries(cats).forEach(([c, v]) => {
             const perc = (v / Math.max(sai, 1)) * 100;
-            resumo.innerHTML += `<div class="categoria-linha" style="margin-bottom:20px;"><div style="display:flex; justify-content:space-between; margin-bottom:8px;"><strong>${c} <small style="color:#00d4ff">(${perc.toFixed(1)}%)</small></strong> <span>${v.toLocaleString('pt-BR', {style:'currency', currency:'BRL'})}</span></div><div style="background:#334155; height:10px; border-radius:10px;"><div style="background:#00d4ff; width:${perc}%; height:100%; border-radius:10px; box-shadow:0 0 12px #00d4ff"></div></div></div>`;
+            resumo.innerHTML += `
+                <div class="categoria-linha">
+                    <div style="display:flex; justify-content:space-between; font-size: 13px;">
+                        <span>${c}</span> <span>${v.toLocaleString('pt-BR', {style:'currency', currency:'BRL'})}</span>
+                    </div>
+                    <div class="resumo-barra-bg"><div class="resumo-barra-fill" style="width:${perc}%"></div></div>
+                </div>`;
         });
         this.renderCharts(filtrados, cats, charts);
     },
@@ -204,10 +189,21 @@ const UI = {
     renderCharts(filtrados, cats, charts) {
         const pCtx = document.getElementById('meuGrafico'), lCtx = document.getElementById('graficoLinha');
         if (charts.pizza) charts.pizza.destroy(); if (charts.linha) charts.linha.destroy();
-        charts.pizza = new Chart(pCtx, { type:'doughnut', data: { labels:Object.keys(cats), datasets:[{data:Object.values(cats), backgroundColor:['#00d4ff','#ef4444','#10b981','#f59e0b','#8b5cf6'], borderWidth:0}] }, options:{plugins:{legend:{position:'bottom', labels:{color:'#fff'}}}} });
+        
+        charts.pizza = new Chart(pCtx, { 
+            type:'doughnut', 
+            data: { labels:Object.keys(cats), datasets:[{data:Object.values(cats), backgroundColor:['#2563eb','#4ade80','#f87171','#f59e0b','#8b5cf6'], borderWidth:0}] },
+            options: { plugins: { legend: { position:'bottom', labels: { color: '#94a3b8', font: { size: 10 } } } } }
+        });
+
         const fluxo = {}; filtrados.forEach(i => { const d = i.data.split('/')[0]; fluxo[d] = (fluxo[d] || 0) + (i.tipo === 'entrada' ? i.valor : -i.valor); });
         const dias = Object.keys(fluxo).sort((a,b) => Number(a)-Number(b));
-        charts.linha = new Chart(lCtx, { type:'line', data: { labels:dias.map(d=>`Dia ${d}`), datasets:[{label:'Saldo', data:dias.map(d=>fluxo[d]), borderColor:'#4ade80', backgroundColor:'rgba(74, 222, 128, 0.2)', fill:true, tension:0.4, pointRadius: 6, pointBackgroundColor: '#4ade80'}] }, options: { maintainAspectRatio:false, scales:{y:{grid:{color:'rgba(255,255,255,0.1)'}, ticks:{color:'#fff', callback:v=>'R$ '+v}}, x:{ticks:{color:'#fff'}}}, plugins:{legend:{labels:{color:'#fff'}}}} });
+        
+        charts.linha = new Chart(lCtx, { 
+            type:'line', 
+            data: { labels:dias.map(d=>`Dia ${d}`), datasets:[{label:'Fluxo', data:dias.map(d=>fluxo[d]), borderColor:'#2563eb', backgroundColor:'rgba(37, 99, 235, 0.1)', fill:true, tension:0.4, pointRadius: 4}] },
+            options: { scales: { y: { ticks: { color: '#94a3b8' } }, x: { ticks: { color: '#94a3b8' } } }, plugins: { legend: { display: false } } }
+        });
     }
 };
 
