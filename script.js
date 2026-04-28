@@ -19,7 +19,6 @@ const App = {
         }
     },
 
-    // --- NOVA FUNÇÃO: OLHO DA SENHA ---
     togglePasswordVisibility() {
         const passInput = document.getElementById("pass-login");
         const eyeIcon = document.getElementById("togglePassword");
@@ -29,6 +28,39 @@ const App = {
         } else {
             passInput.type = "password";
             eyeIcon.classList.replace("fa-eye-slash", "fa-eye");
+        }
+    },
+
+    async handleEmailAuth() {
+        const e = document.getElementById("email-login").value.trim();
+        const p = document.getElementById("pass-login").value;
+        const errorDiv = document.getElementById("login-error-msg");
+        const btn = document.getElementById("btn-entrar");
+
+        if(!e || !p) {
+            errorDiv.innerText = "Preencha e-mail e senha!";
+            errorDiv.style.display = "block";
+            return;
+        }
+
+        try {
+            btn.innerText = "Carregando...";
+            btn.disabled = true;
+            errorDiv.style.display = "none";
+            await window.AuthActions.email(e, p);
+        } catch (error) {
+            console.error("Erro Firebase:", error.code);
+            let msg = "Erro ao entrar. Verifique seus dados.";
+            
+            if (error.code === 'auth/too-many-requests') msg = "Muitas tentativas. Aguarde 5 minutos e tente de novo.";
+            else if (error.code === 'auth/wrong-password') msg = "Senha incorreta!";
+            else if (error.code === 'auth/invalid-email') msg = "E-mail inválido!";
+            else if (error.code === 'auth/weak-password') msg = "Senha deve ter 6 dígitos.";
+            
+            errorDiv.innerText = msg;
+            errorDiv.style.display = "block";
+            btn.innerText = "Entrar / Cadastrar";
+            btn.disabled = false;
         }
     },
 
@@ -47,42 +79,6 @@ const App = {
     },
 
     handleGoogleAuth() { window.AuthActions.google(); },
-
-    // --- CORREÇÃO DO LOGIN E MENSAGEM DE ERRO ---
-    async handleEmailAuth() {
-        const e = document.getElementById("email-login").value;
-        const p = document.getElementById("pass-login").value;
-        const errorDiv = document.getElementById("login-error-msg");
-        const btn = document.getElementById("btn-entrar");
-
-        if(!e || !p) {
-            errorDiv.innerText = "Preencha e-mail e senha!";
-            errorDiv.style.display = "block";
-            return;
-        }
-
-        try {
-            btn.innerText = "Carregando...";
-            btn.disabled = true;
-            errorDiv.style.display = "none";
-            await window.AuthActions.email(e, p);
-        } catch (error) {
-            console.error(error);
-            let msg = "Erro ao entrar. Verifique seus dados.";
-            
-            // Mapeando erros comuns do Firebase para Português
-            if (error.code === 'auth/wrong-password') msg = "Senha incorreta!";
-            if (error.code === 'auth/invalid-email') msg = "E-mail inválido!";
-            if (error.code === 'auth/weak-password') msg = "A senha deve ter pelo menos 6 dígitos.";
-            if (error.code === 'auth/user-disabled') msg = "Esta conta foi desativada.";
-
-            errorDiv.innerText = msg;
-            errorDiv.style.display = "block";
-            btn.innerText = "Entrar / Cadastrar";
-            btn.disabled = false;
-        }
-    },
-
     handleLogout() { window.AuthActions.logout(); },
 
     handleSave() {
@@ -94,15 +90,13 @@ const App = {
         this.persist();
         d.value = ""; v.value = ""; r.checked = false;
         document.getElementById("btnSalvar").innerText = "Adicionar";
-        document.getElementById("tituloForm").innerText = "Novo Lançamento";
     },
 
     autoCategory(desc, tipo) {
         if (tipo === "entrada") return "Renda";
         const t = desc.toLowerCase();
-        if (t.includes("ifood") || t.includes("salgado") || t.includes("comida") || t.includes("burger") || t.includes("pizza")) return "Alimentação";
-        if (t.includes("uber") || t.includes("posto") || t.includes("gasolina") || t.includes("i30") || t.includes("mecanico")) return "Transporte";
-        if (t.includes("mercado") || t.includes("atacadão")) return "Mercado";
+        if (t.includes("ifood") || t.includes("salgado") || t.includes("comida")) return "Alimentação";
+        if (t.includes("uber") || t.includes("posto") || t.includes("gasolina") || t.includes("i30")) return "Transporte";
         return "Outros";
     },
 
@@ -123,7 +117,6 @@ const App = {
         const i = this.state.lancamentos.find(x => x.id === id);
         this.state.idEdicao = id;
         document.getElementById("descricao").value = i.descricao; document.getElementById("valor").value = i.valor; document.getElementById("btnSalvar").innerText = "Salvar Alterações";
-        document.getElementById("tituloForm").innerText = "Editando Lançamento";
         window.scrollTo({ top: 0, behavior: 'smooth' });
     },
 
@@ -189,7 +182,7 @@ const UI = {
         charts.pizza = new Chart(pCtx, { type:'doughnut', data: { labels:Object.keys(cats), datasets:[{data:Object.values(cats), backgroundColor:['#00d4ff','#ef4444','#10b981','#f59e0b','#8b5cf6'], borderWidth:0}] }, options:{plugins:{legend:{position:'bottom', labels:{color:'#fff'}}}} });
         const fluxo = {}; filtrados.forEach(i => { const d = i.data.split('/')[0]; fluxo[d] = (fluxo[d] || 0) + (i.tipo === 'entrada' ? i.valor : -i.valor); });
         const dias = Object.keys(fluxo).sort((a,b) => Number(a)-Number(b));
-        charts.linha = new Chart(lCtx, { type:'line', data: { labels:dias.map(d=>`Dia ${d}`), datasets:[{label:'Fluxo', data:dias.map(d=>fluxo[d]), borderColor:'#4ade80', backgroundColor:'rgba(74, 222, 128, 0.2)', fill:true, tension:0.4, pointRadius: 6, pointBackgroundColor: '#4ade80'}] }, options: { maintainAspectRatio:false, scales:{y:{grid:{color:'rgba(255,255,255,0.1)'}, ticks:{color:'#fff', callback:v=>'R$ '+v}}, x:{ticks:{color:'#fff'}}}, plugins:{legend:{labels:{color:'#fff'}}}} });
+        charts.linha = new Chart(lCtx, { type:'line', data: { labels:dias.map(d=>`Dia ${d}`), datasets:[{label:'Saldo', data:dias.map(d=>fluxo[d]), borderColor:'#4ade80', backgroundColor:'rgba(74, 222, 128, 0.2)', fill:true, tension:0.4, pointRadius: 6, pointBackgroundColor: '#4ade80'}] }, options: { maintainAspectRatio:false, scales:{y:{grid:{color:'rgba(255,255,255,0.1)'}, ticks:{color:'#fff', callback:v=>'R$ '+v}}, x:{ticks:{color:'#fff'}}}, plugins:{legend:{labels:{color:'#fff'}}}} });
     }
 };
 

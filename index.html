@@ -24,15 +24,14 @@
         <p style="color: #94a3b8; margin-bottom: 25px; font-size: 0.95rem;">ADS Secure Management System</p>
         
         <div id="login-form" style="display: flex; flex-direction: column; gap: 16px;">
-            
             <div style="position: relative; text-align: left;">
                 <i class="fas fa-envelope" style="position: absolute; left: 15px; top: 15px; color: #64748b;"></i>
-                <input type="email" id="email-login" placeholder="E-mail" style="width: 100%; padding: 14px 14px 14px 45px; border-radius: 12px; border: 1px solid #334155; background: rgba(15, 23, 42, 0.6); color: #fff; outline: none;">
+                <input type="email" id="email-login" placeholder="E-mail profissional" style="width: 100%; padding: 14px 14px 14px 45px; border-radius: 12px; border: 1px solid #334155; background: rgba(15, 23, 42, 0.6); color: #fff; outline: none;">
             </div>
 
             <div style="position: relative; text-align: left;">
                 <i class="fas fa-lock" style="position: absolute; left: 15px; top: 15px; color: #64748b;"></i>
-                <input type="password" id="pass-login" placeholder="Senha" style="width: 100%; padding: 14px 45px 14px 45px; border-radius: 12px; border: 1px solid #334155; background: rgba(15, 23, 42, 0.6); color: #fff; outline: none;">
+                <input type="password" id="pass-login" placeholder="Senha de acesso" style="width: 100%; padding: 14px 45px 14px 45px; border-radius: 12px; border: 1px solid #334155; background: rgba(15, 23, 42, 0.6); color: #fff; outline: none;">
                 <i class="fas fa-eye" id="togglePassword" onclick="App.togglePasswordVisibility()" style="position: absolute; right: 15px; top: 15px; color: #64748b; cursor: pointer;"></i>
             </div>
 
@@ -42,7 +41,7 @@
                 Entrar / Cadastrar
             </button>
             
-            <div style="display: flex; align-items: center; margin: 5px 0;"><div style="flex: 1; height: 1px; background: #334155;"></div><span style="padding: 0 15px; color: #64748b; font-size: 0.8rem;">OU</span><div style="flex: 1; height: 1px; background: #334155;"></div></div>
+            <div style="display: flex; align-items: center; margin: 5px 0;"><div style="flex: 1; height: 1px; background: #334155;"></div><span style="padding: 0 15px; color: #64748b; font-size: 0.8rem; font-weight: 600;">OU</span><div style="flex: 1; height: 1px; background: #334155;"></div></div>
             
             <button onclick="App.handleGoogleAuth()" style="background: #fff; color: #1e293b; padding: 12px; border: none; border-radius: 12px; font-weight: 700; cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 12px;">
                 <img src="https://www.gstatic.com/images/branding/product/1x/gsa_512dp.png" width="20"> Acessar com Google
@@ -64,7 +63,7 @@
       <div class="card"><span>Saldo do Mês</span><strong id="saldo">R$ 0,00</strong></div>
       <div class="card meta-container">
         <span>Meta Mensal</span>
-        <input type="number" id="inputMeta" placeholder="Definir R$" onchange="App.handleMetaChange()">
+        <input type="number" id="inputMeta" placeholder="R$ 0,00" onchange="App.handleMetaChange()">
         <div class="progress-bg"><div id="progress-bar"></div></div>
         <small id="statusMeta"></small>
       </div>
@@ -82,7 +81,7 @@
 
     <section class="form-box">
       <h2 id="tituloForm">Novo Lançamento</h2>
-      <input type="text" id="descricao" placeholder="Descrição (ex: i30, Mercado, Salgado)" />
+      <input type="text" id="descricao" placeholder="Descrição (ex: i30, iFood, Salgadinho)" />
       <input type="number" id="valor" placeholder="Valor R$" />
       <div class="form-row" style="display:flex; gap:10px; margin-bottom:10px;">
         <select id="tipo" style="flex:1;"><option value="saida">Gasto</option><option value="entrada">Entrada</option></select>
@@ -105,7 +104,7 @@
       </div>
 
       <div id="alertaRecorrencia" style="display:none; background:#2563eb; color:#fff; padding:15px; border-radius:8px; margin-bottom:20px; text-align:center;">
-        <p>Importar seus gastos fixos?</p>
+        <p>Mês novo! Importar seus gastos fixos?</p>
         <button onclick="App.importRecurring()" style="background:#fff; color:#2563eb; border:none; padding:8px 15px; border-radius:5px; margin-top:10px; font-weight:bold;">Sim, importar</button>
       </div>
 
@@ -171,15 +170,15 @@
 
     window.AuthActions = {
       google: () => signInWithPopup(auth, provider),
-      email: (e, p) => {
-          // Melhorei o fluxo: tenta logar, se não existir, tenta criar.
-          return signInWithEmailAndPassword(auth, e, p)
-            .catch((error) => {
-                if (error.code === 'auth/user-not-found') {
-                    return createUserWithEmailAndPassword(auth, e, p);
-                }
-                throw error; // Joga o erro para ser tratado no script.js
-            });
+      email: async (e, p) => {
+          try {
+              return await signInWithEmailAndPassword(auth, e, p);
+          } catch (error) {
+              if (error.code === 'auth/user-not-found' || error.code === 'auth/invalid-credential') {
+                  return await createUserWithEmailAndPassword(auth, e, p);
+              }
+              throw error;
+          }
       },
       logout: () => signOut(auth)
     };
