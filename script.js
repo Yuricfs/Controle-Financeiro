@@ -1,216 +1,172 @@
-let lancamentos = JSON.parse(localStorage.getItem("lancamentos")) || [];
-let filtradosParaExportar = [];
-let chartPizza = null, chartLinha = null, idEdicao = null;
+/**
+ * APP MODULE: O "Cérebro" do sistema
+ */
+const App = {
+    state: {
+        lancamentos: JSON.parse(localStorage.getItem("lancamentos")) || [],
+        filtrados: [],
+        idEdicao: null,
+        charts: { pizza: null, linha: null }
+    },
 
-const mesesNomes = ["Janeiro", "Fevereiro", "Março", "Abril", "Maio", "Junho", "Julho", "Agosto", "Setembro", "Outubro", "Novembro", "Dezembro"];
-const dataGlobal = new Date();
+    init() {
+        this.configFilters();
+        this.bindEvents();
+        this.updateUI();
+    },
 
-function configurarFiltros() {
-    const sMes = document.getElementById("filtroMes");
-    const sAno = document.getElementById("filtroAno");
-    if (sMes && sMes.options.length === 0) {
-        mesesNomes.forEach((m, i) => sMes.add(new Option(m, i + 1)));
-        sMes.value = dataGlobal.getMonth() + 1;
+    bindEvents() {
+        // Vincula as chamadas do Firebase quando o DB estiver pronto
+        const checkDB = setInterval(() => {
+            if (window.DB) {
+                window.DB.onDataChange(data => {
+                    this.state.lancamentos = data || [];
+                    this.updateUI();
+                });
+                window.DB.onMetaChange(val => {
+                    if (val) document.getElementById("inputMeta").value = val;
+                    this.updateUI();
+                });
+                clearInterval(checkDB);
+            }
+        }, 500);
+    },
+
+    // --- LÓGICA DE NEGÓCIO ---
+    handleSave() {
+        const d = document.getElementById("descricao"), v = document.getElementById("valor");
+        const t = document.getElementById("tipo"), c = document.getElementById("categoriaManual");
+        const r = document.getElementById("recorrente");
+
+        if (!d.value || !v.value) return alert("Preencha os campos!");
+
+        const novo = {
+            id: this.state.idEdicao || Date.now(),
+            descricao: d.value.trim(),
+            valor: Number(v.value),
+            tipo: t.value,
+            categoria: c.value || this.autoCategory(d.value, t.value),
+            recorrente: r.checked,
+            data: this.state.idEdicao ? this.state.lancamentos.find(x => x.id === this.state.idEdicao).data : new Date().toLocaleDateString("pt-BR")
+        };
+
+        if (this.state.idEdicao) {
+            const idx = this.state.lancamentos.findIndex(x => x.id === this.state.idEdicao);
+            this.state.lancamentos[idx] = novo;
+            this.state.idEdicao = null;
+        } else {
+            this.state.lancamentos.push(novo);
+        }
+
+        this.persist();
+        this.resetForm();
+    },
+
+    autoCategory(desc, tipo) {
+        if (tipo === "entrada") return "Renda";
+        const map = { "Alimentação": ["ifood", "pizza", "burger"], "Transporte": ["uber", "posto", "i30"], "Casa": ["aluguel", "luz"] };
+        const t = desc.toLowerCase();
+        for (const cat in map) if (map[cat].some(p => t.includes(p))) return cat;
+        return "Outros";
+    },
+
+    persist() {
+        localStorage.setItem("lancamentos", JSON.stringify(this.state.lancamentos));
+        if (window.DB) window.DB.saveTransactions(this.state.lancamentos);
+        this.updateUI();
+    },
+
+    // --- INTERFACE (UI) ---
+    updateUI() {
+        this.filterData();
+        UI.renderSummary(this.state.filtrados);
+        UI.renderList(this.state.filtrados);
+        UI.renderCharts(this.state.filtrados, this.state.charts);
+    },
+
+    filterData() {
+        const m = document.getElementById("filtroMes").value;
+        const a = document.getElementById("filtroAno").value;
+        const b = document.getElementById("inputBusca").value.toLowerCase();
+
+        this.state.filtrados = this.state.lancamentos.filter(i => {
+            const [dia, mes, ano] = i.data.split('/');
+            return Number(mes) == m && Number(ano) == a && i.descricao.toLowerCase().includes(b);
+        });
+
+        UI.toggleRecurrenceAlert(this.state.filtrados.length === 0 && this.state.lancamentos.some(i => i.recorrente));
+    },
+
+    // --- EXPORTAÇÃO ---
+    exportPDF() {
+        const { jsPDF } = window.jspdf;
+        const doc = new jsPDF();
+        doc.text("Relatório Financeiro", 14, 15);
+        const rows = this.state.filtrados.map(i => [i.data, i.descricao, i.categoria, i.valor.toLocaleString('pt-BR', {style:'currency', currency:'BRL'})]);
+        doc.autoTable({ head: [['Data', 'Item', 'Categoria', 'Valor']], body: rows, startY: 20 });
+        doc.save("financeiro.pdf");
     }
-    if (sAno && sAno.options.length === 0) {
-        const anoAtual = dataGlobal.getFullYear();
-        for (let a = anoAtual - 1; a <= anoAtual + 1; a++) sAno.add(new Option(a, a));
-        sAno.value = anoAtual;
-    }
-}
-
-const formatarMoeda = (v) => v.toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
-
-function descobrirCategoria(desc, catM, tipo) {
-    if (catM) return catM;
-    if (tipo === "entrada") return "Renda";
-    const catsAuto = {
-        "Alimentação": ["ifood", "pizza", "burger", "restaurante", "salgado", "comida"],
-        "Transporte": ["uber", "99", "gasolina", "posto", "i30", "oficina"],
-        "Mercado": ["mercado", "supermercado"],
-        "Casa": ["aluguel", "internet", "energia"]
-    };
-    const t = desc.toLowerCase();
-    for (const c in catsAuto) if (catsAuto[c].some(p => t.includes(p))) return c;
-    return "Outros";
-}
-
-// --- EXPORTAÇÃO ---
-window.exportarPDF = function() {
-    const { jsPDF } = window.jspdf;
-    const doc = new jsPDF();
-    const mes = mesesNomes[document.getElementById("filtroMes").value - 1];
-    doc.text(`Relatório Financeiro - ${mes}`, 14, 15);
-    const rows = filtradosParaExportar.map(i => [i.data, i.descricao, i.categoria, i.tipo === 'entrada' ? 'Entrada' : 'Saída', formatarMoeda(i.valor)]);
-    doc.autoTable({ head: [['Data', 'Descrição', 'Categoria', 'Tipo', 'Valor']], body: rows, startY: 20 });
-    doc.save(`extrato_${mes}.pdf`);
 };
 
-window.exportarExcel = function() {
-    const ws = XLSX.utils.json_to_sheet(filtradosParaExportar);
-    const wb = XLSX.utils.book_new();
-    XLSX.utils.book_append_sheet(wb, ws, "Dados");
-    XLSX.writeFile(wb, "financeiro.xlsx");
-};
+/**
+ * UI MODULE: Cuida apenas de "desenhar" as coisas
+ */
+const UI = {
+    renderSummary(dados) {
+        let ent = 0, sai = 0, cats = {};
+        dados.forEach(i => {
+            if (i.tipo === "entrada") ent += i.valor;
+            else { sai += i.valor; cats[i.categoria] = (cats[i.categoria] || 0) + i.valor; }
+        });
 
-// --- LOGICA ---
-window.salvarMeta = () => {
-    const val = document.getElementById("inputMeta").value;
-    if (window.salvarMetaFirebase) window.salvarMetaFirebase(Number(val));
-    atualizarTela();
-};
-
-window.importarRecorrentes = function() {
-    const m = document.getElementById("filtroMes").value;
-    const a = document.getElementById("filtroAno").value;
-    const recs = lancamentos.filter(i => i.recorrente === true);
-    const novos = recs.map(i => ({ ...i, id: Date.now() + Math.random(), data: `01/${m.padStart(2, '0')}/${a}` }));
-    lancamentos = [...lancamentos, ...novos];
-    salvar(); atualizarTela();
-};
-
-window.adicionarLancamento = function() {
-    const desc = document.getElementById("descricao"), val = document.getElementById("valor"), tipo = document.getElementById("tipo"), catM = document.getElementById("categoriaManual"), rec = document.getElementById("recorrente");
-    if (!desc.value || !val.value) return alert("Preencha!");
-
-    if (idEdicao) {
-        const idx = lancamentos.findIndex(x => x.id === idEdicao);
-        lancamentos[idx] = { ...lancamentos[idx], descricao: desc.value, valor: Number(val.value), tipo: tipo.value, categoria: descobrirCategoria(desc.value, catM.value, tipo.value), recorrente: rec.checked };
-        idEdicao = null;
-        document.getElementById("tituloForm").innerText = "Novo Lançamento";
-        document.getElementById("btnSalvar").innerText = "Adicionar";
-    } else {
-        lancamentos.push({ id: Date.now(), descricao: desc.value, valor: Number(val.value), tipo: tipo.value, categoria: descobrirCategoria(desc.value, catM.value, tipo.value), recorrente: rec.checked, data: new Date().toLocaleDateString("pt-BR") });
-    }
-    salvar(); atualizarTela();
-    desc.value = ""; val.value = "";
-};
-
-function salvar() {
-    localStorage.setItem("lancamentos", JSON.stringify(lancamentos));
-    if (typeof window.salvarNoFirebase === 'function') window.salvarNoFirebase(lancamentos);
-}
-
-window.atualizarInterface = (d) => { lancamentos = d || []; atualizarTela(); };
-window.excluirLancamento = (id) => { if (confirm("Excluir?")) { lancamentos = lancamentos.filter(x => x.id !== id); salvar(); atualizarTela(); } };
-window.prepararEdicao = (id) => { idEdicao = id; const i = lancamentos.find(x => x.id === id); document.getElementById("descricao").value = i.descricao; document.getElementById("valor").value = i.valor; document.getElementById("tituloForm").innerText = "Editando..."; document.getElementById("btnSalvar").innerText = "Salvar Alterações"; window.scrollTo(0,0); };
-window.limparTudo = () => { if (confirm("Zerar?")) { lancamentos = []; salvar(); atualizarTela(); } };
-
-function atualizarTela() {
-    configurarFiltros();
-    const mesS = document.getElementById("filtroMes").value;
-    const anoS = document.getElementById("filtroAno").value;
-    const busca = document.getElementById("inputBusca").value.toLowerCase();
-
-    filtradosParaExportar = lancamentos.filter(i => {
-        const [d, m, a] = i.data.split('/');
-        return Number(m) == mesS && Number(a) == anoS && i.descricao.toLowerCase().includes(busca);
-    });
-
-    const alerta = document.getElementById("alertaRecorrencia");
-    if (filtradosParaExportar.length === 0 && lancamentos.some(i => i.recorrente)) alerta.style.display = "block";
-    else alerta.style.display = "none";
-
-    const lista = document.getElementById("listaLancamentos"), resumo = document.getElementById("resumoCategorias");
-    let ent = 0, sai = 0, cats = {};
-
-    lista.innerHTML = ""; resumo.innerHTML = "";
-    filtradosParaExportar.forEach(i => {
-        if (i.tipo === "entrada") ent += i.valor;
-        else { sai += i.valor; cats[i.categoria] = (cats[i.categoria] || 0) + i.valor; }
+        document.getElementById("saldo").innerText = (ent - sai).toLocaleString('pt-BR', {style:'currency', currency:'BRL'});
+        document.getElementById("totalEntradas").innerText = ent.toLocaleString('pt-BR', {style:'currency', currency:'BRL'});
+        document.getElementById("totalSaidas").innerText = sai.toLocaleString('pt-BR', {style:'currency', currency:'BRL'});
         
-        lista.innerHTML = `
+        this.updateProgressBar(sai);
+        this.renderCategoryBars(cats, sai);
+    },
+
+    updateProgressBar(gastos) {
+        const meta = Number(document.getElementById("inputMeta").value) || 0;
+        const bar = document.getElementById("progress-bar");
+        if (meta > 0) {
+            const p = Math.min((gastos / meta) * 100, 100);
+            bar.style.width = p + "%";
+            bar.style.backgroundColor = p > 90 ? "#ef4444" : "#22c55e";
+        }
+    },
+
+    renderList(dados) {
+        const container = document.getElementById("listaLancamentos");
+        container.innerHTML = dados.map(i => `
             <div class="item">
-                <div class="item-topo"><strong>${i.recorrente ? '📌 ' : ''}${i.descricao}</strong> <span class="${i.tipo === 'entrada' ? 'valor-entrada' : 'valor-saida'}">${formatarMoeda(i.valor)}</span></div>
+                <div class="item-topo"><strong>${i.recorrente ? '📌 ' : ''}${i.descricao}</strong> <span>R$ ${i.valor}</span></div>
                 <small>${i.data} • ${i.categoria}</small>
-                <div class="item-acoes" style="display:flex; gap:10px; margin-top:10px;">
-                    <button onclick="window.prepararEdicao(${i.id})" style="flex:1;">Editar</button>
-                    <button onclick="window.excluirLancamento(${i.id})" style="flex:1; background:#444;">Excluir</button>
+                <div class="item-acoes">
+                    <button onclick="App.prepareEdit(${i.id})">Editar</button>
+                    <button onclick="App.deleteItem(${i.id})" style="background:#444">Excluir</button>
                 </div>
-            </div>` + lista.innerHTML;
-    });
+            </div>
+        `).join('');
+    },
 
-    document.getElementById("saldo").innerText = formatarMoeda(ent - sai);
-    document.getElementById("totalEntradas").innerText = formatarMoeda(ent);
-    document.getElementById("totalSaidas").innerText = formatarMoeda(sai);
+    renderCharts(dados, charts) {
+        const pCtx = document.getElementById('meuGrafico'), lCtx = document.getElementById('graficoLinha');
+        if (charts.pizza) charts.pizza.destroy();
+        if (charts.linha) charts.linha.destroy();
 
-    // Meta
-    const metaVal = Number(document.getElementById("inputMeta").value) || 0;
-    const prog = document.getElementById("progress-bar"), stat = document.getElementById("statusMeta");
-    if (metaVal > 0) {
-        const p = Math.min((sai / metaVal) * 100, 100);
-        prog.style.width = p + "%";
-        prog.style.backgroundColor = p > 90 ? "#ef4444" : "#22c55e";
-        stat.innerText = `${p.toFixed(0)}% da meta atingida`;
+        // Lógica simplificada de agrupamento
+        const cats = {}; dados.forEach(i => { if(i.tipo==='saida') cats[i.categoria] = (cats[i.categoria] || 0) + i.valor });
+        
+        charts.pizza = new Chart(pCtx, { 
+            type: 'doughnut', 
+            data: { labels: Object.keys(cats), datasets: [{ data: Object.values(cats), backgroundColor: ['#00d4ff','#ef4444','#10b981','#f59e0b'] }] },
+            options: { plugins: { legend: { labels: { color: '#fff' } } } }
+        });
     }
+};
 
-    // BARRAS DE CATEGORIA COM PERCENTUAL (RESOLVENDO O "VAZIO")
-    Object.entries(cats).forEach(([c, v]) => {
-        const perc = (v / sai) * 100; // Porcentagem em relação ao total gasto
-        resumo.innerHTML += `
-            <div class="categoria-linha" style="margin-bottom: 20px;">
-                <div style="display: flex; justify-content: space-between; margin-bottom: 8px;">
-                    <strong>${c} <small style="color: #00d4ff; font-weight: normal;">(${perc.toFixed(1)}%)</small></strong> 
-                    <span>${formatarMoeda(v)}</span>
-                </div>
-                <div style="background: #334155; height: 10px; border-radius: 10px;">
-                    <div style="background: #00d4ff; width: ${perc}%; height: 100%; border-radius: 10px; box-shadow: 0 0 10px rgba(0, 212, 255, 0.5);"></div>
-                </div>
-            </div>`;
-    });
-
-    desenharGraficos(filtradosParaExportar, cats);
-}
-
-function desenharGraficos(filtrados, cats) {
-    const pCtx = document.getElementById('meuGrafico'), lCtx = document.getElementById('graficoLinha');
-    if (!pCtx || !lCtx) return;
-    if (chartPizza) chartPizza.destroy(); if (chartLinha) chartLinha.destroy();
-
-    // Pizza com Cores Vibrantes
-    chartPizza = new Chart(pCtx, { 
-        type: 'doughnut', 
-        data: { 
-            labels: Object.keys(cats), 
-            datasets: [{ 
-                data: Object.values(cats), 
-                backgroundColor: ['#00d4ff', '#ef4444', '#10b981', '#f59e0b', '#8b5cf6'],
-                borderColor: '#1e293b',
-                borderWidth: 3
-            }] 
-        }, 
-        options: { plugins: { legend: { position: 'bottom', labels: { color: '#fff' } } } } 
-    });
-
-    // Linha com Verde Limão vibrante
-    const fluxo = {};
-    filtrados.forEach(i => { const d = i.data.split('/')[0]; fluxo[d] = (fluxo[d] || 0) + (i.tipo === 'entrada' ? i.valor : -i.valor); });
-    const dias = Object.keys(fluxo).sort((a,b) => a-b);
-    chartLinha = new Chart(lCtx, { 
-        type: 'line', 
-        data: { 
-            labels: dias.map(d => `Dia ${d}`), 
-            datasets: [{ 
-                label: 'Fluxo (R$)', 
-                data: dias.map(d => fluxo[d]), 
-                borderColor: '#4ade80', 
-                fill: true, 
-                backgroundColor: 'rgba(74, 222, 128, 0.1)', 
-                tension: 0.4,
-                pointBackgroundColor: '#4ade80',
-                pointRadius: 6
-            }] 
-        }, 
-        options: { 
-            scales: { 
-                y: { grid: { color: 'rgba(255,255,255,0.1)' }, ticks: { color: '#fff', callback: v => 'R$ '+v } }, 
-                x: { ticks: { color: '#fff' } } 
-            }, 
-            plugins: { legend: { labels: { color: '#fff' } } } 
-        } 
-    });
-}
-
-configurarFiltros();
-atualizarTela();
-window.atualizarTela = atualizarTela;
+// --- FUNÇÕES GLOBAIS (Expostas para o HTML) ---
+window.App = App;
+App.init();
