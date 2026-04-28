@@ -1,3 +1,6 @@
+/**
+ * APP MODULE: Gerencia dados e ações
+ */
 const App = {
     state: {
         lancamentos: JSON.parse(localStorage.getItem("lancamentos")) || [],
@@ -30,16 +33,15 @@ const App = {
         const check = setInterval(() => {
             if (window.DB) {
                 window.DB.onDataChange(data => { this.state.lancamentos = data || []; this.updateUI(); });
-                window.DB.onMetaChange(val => { if (val) document.getElementById("inputMeta").value = val; this.updateUI(); });
+                window.DB.onMetaChange(val => { if (val !== null) document.getElementById("inputMeta").value = val; this.updateUI(); });
                 clearInterval(check);
             }
         }, 500);
     },
 
     handleSave() {
-        const d = document.getElementById("descricao"), v = document.getElementById("valor");
-        const t = document.getElementById("tipo"), c = document.getElementById("categoriaManual"), r = document.getElementById("recorrente");
-        if (!d.value || !v.value) return alert("Preencha os campos!");
+        const d = document.getElementById("descricao"), v = document.getElementById("valor"), t = document.getElementById("tipo"), c = document.getElementById("categoriaManual"), r = document.getElementById("recorrente");
+        if (!d.value || !v.value) return alert("Preencha descrição e valor!");
 
         const novo = {
             id: this.state.idEdicao || Date.now(),
@@ -61,14 +63,14 @@ const App = {
 
         this.persist();
         d.value = ""; v.value = ""; r.checked = false;
-        document.getElementById("btnSalvar").innerText = "Adicionar";
+        document.getElementById("btnSalvar").innerText = "Adicionar Lançamento";
     },
 
     autoCategory(desc, tipo) {
         if (tipo === "entrada") return "Renda";
         const t = desc.toLowerCase();
-        if (t.includes("ifood") || t.includes("salgado") || t.includes("comida")) return "Alimentação";
-        if (t.includes("uber") || t.includes("posto") || t.includes("gasolina") || t.includes("i30")) return "Transporte";
+        if (t.includes("ifood") || t.includes("salgado") || t.includes("comida") || t.includes("lanche")) return "Alimentação";
+        if (t.includes("uber") || t.includes("posto") || t.includes("gasolina") || t.includes("i30") || t.includes("oficina")) return "Transporte";
         return "Outros";
     },
 
@@ -78,17 +80,28 @@ const App = {
         this.updateUI();
     },
 
+    importRecurring() {
+        const m = document.getElementById("filtroMes").value, a = document.getElementById("filtroAno").value;
+        const novos = this.state.lancamentos.filter(i => i.recorrente === true).map(i => ({
+            ...i, id: Date.now() + Math.random(), data: `01/${m.padStart(2, '0')}/${a}`
+        }));
+        this.state.lancamentos = [...this.state.lancamentos, ...novos];
+        this.persist();
+    },
+
     prepareEdit(id) {
         const i = this.state.lancamentos.find(x => x.id === id);
         this.state.idEdicao = id;
         document.getElementById("descricao").value = i.descricao;
         document.getElementById("valor").value = i.valor;
+        document.getElementById("tipo").value = i.tipo;
+        document.getElementById("recorrente").checked = i.recorrente || false;
         document.getElementById("btnSalvar").innerText = "Salvar Alterações";
         window.scrollTo({ top: 0, behavior: 'smooth' });
     },
 
     deleteItem(id) { if (confirm("Excluir?")) { this.state.lancamentos = this.state.lancamentos.filter(x => x.id !== id); this.persist(); } },
-    clearAll() { if (confirm("Zerar dados?")) { this.state.lancamentos = []; this.persist(); } },
+    clearAll() { if (confirm("Limpar tudo?")) { this.state.lancamentos = []; this.persist(); } },
 
     persist() {
         localStorage.setItem("lancamentos", JSON.stringify(this.state.lancamentos));
@@ -103,13 +116,13 @@ const App = {
             const [, mes, ano] = i.data.split('/');
             return Number(mes) == m && Number(ano) == a && i.descricao.toLowerCase().includes(b);
         });
-        UI.render(this.state.filtrados, this.state.charts);
+        UI.render(this.state.filtrados, this.state.lancamentos, this.state.charts);
     },
 
     exportPDF() {
         const { jsPDF } = window.jspdf;
         const doc = new jsPDF();
-        doc.text("Extrato Financeiro", 14, 15);
+        doc.text("Extrato Financeiro - ADS Pro", 14, 15);
         const rows = this.state.filtrados.map(i => [i.data, i.descricao, i.categoria, i.valor.toLocaleString('pt-BR', {style:'currency', currency:'BRL'})]);
         doc.autoTable({ head: [['Data', 'Item', 'Categoria', 'Valor']], body: rows, startY: 20 });
         doc.save("extrato.pdf");
@@ -123,8 +136,11 @@ const App = {
     }
 };
 
+/**
+ * UI MODULE: Cuida do visual
+ */
 const UI = {
-    render(filtrados, charts) {
+    render(filtrados, total, charts) {
         let ent = 0, sai = 0, cats = {};
         const lista = document.getElementById("listaLancamentos"), resumo = document.getElementById("resumoCategorias");
         lista.innerHTML = ""; resumo.innerHTML = "";
@@ -133,13 +149,14 @@ const UI = {
             if (i.tipo === "entrada") ent += i.valor;
             else { sai += i.valor; cats[i.categoria] = (cats[i.categoria] || 0) + i.valor; }
 
+            // EXTRATO RESTAURADO COM DATA E CATEGORIA
             lista.innerHTML = `
                 <div class="item">
-                    <div class="item-topo"><strong>${i.descricao}</strong> <span class="${i.tipo === 'entrada' ? 'valor-entrada' : 'valor-saida'}">${i.valor.toLocaleString('pt-BR', {style:'currency', currency:'BRL'})}</span></div>
-                    <small style="color:#aaa">${i.data} • ${i.categoria}</small>
-                    <div class="item-acoes" style="display:flex; gap:8px; margin-top:10px;">
-                        <button onclick="App.prepareEdit(${i.id})" style="flex:1;">Editar</button>
-                        <button onclick="App.deleteItem(${i.id})" style="flex:1; background:#444;">Excluir</button>
+                    <div class="item-topo"><strong>${i.recorrente ? '📌 ' : ''}${i.descricao}</strong> <span class="${i.tipo === 'entrada' ? 'valor-entrada' : 'valor-saida'}">${i.valor.toLocaleString('pt-BR', {style:'currency', currency:'BRL'})}</span></div>
+                    <small style="color:#aaa; display:block; margin-bottom:10px;">${i.data} • ${i.categoria}</small>
+                    <div class="item-acoes" style="display:flex; gap:8px;">
+                        <button onclick="App.prepareEdit(${i.id})" style="flex:1; padding:10px;">Editar</button>
+                        <button onclick="App.deleteItem(${i.id})" style="flex:1; background:#444; padding:10px;">Excluir</button>
                     </div>
                 </div>` + lista.innerHTML;
         });
@@ -148,23 +165,31 @@ const UI = {
         document.getElementById("totalEntradas").innerText = ent.toLocaleString('pt-BR', {style:'currency', currency:'BRL'});
         document.getElementById("totalSaidas").innerText = sai.toLocaleString('pt-BR', {style:'currency', currency:'BRL'});
 
-        // Meta
+        // Meta Progress
         const meta = Number(document.getElementById("inputMeta").value) || 0;
         const bar = document.getElementById("progress-bar"), stat = document.getElementById("statusMeta");
         if (meta > 0) {
             const p = Math.min((sai / meta) * 100, 100);
             bar.style.width = p + "%";
             bar.style.backgroundColor = p > 90 ? "#ef4444" : "#22c55e";
-            stat.innerText = `${p.toFixed(0)}% da meta`;
+            stat.innerText = `${p.toFixed(1)}% da meta utilizada`;
         }
 
-        // Barras Neon
+        // Alerta Recorrência
+        document.getElementById("alertaRecorrencia").style.display = (filtrados.length === 0 && total.some(i => i.recorrente)) ? "block" : "none";
+
+        // RESUMO POR CATEGORIAS RESTAURADO (NEON)
         Object.entries(cats).forEach(([c, v]) => {
             const perc = (v / Math.max(sai, 1)) * 100;
             resumo.innerHTML += `
-                <div class="categoria-linha" style="margin-bottom:15px;">
-                    <div style="display:flex; justify-content:space-between; margin-bottom:5px;"><strong>${c} (${perc.toFixed(0)}%)</strong> <span>${v.toLocaleString('pt-BR', {style:'currency', currency:'BRL'})}</span></div>
-                    <div style="background:#334155; height:8px; border-radius:10px;"><div style="background:#00d4ff; width:${perc}%; height:100%; border-radius:10px; box-shadow:0 0 10px #00d4ff"></div></div>
+                <div class="categoria-linha" style="margin-bottom:20px;">
+                    <div style="display:flex; justify-content:space-between; margin-bottom:8px;">
+                        <strong>${c} <small style="color:#00d4ff">(${perc.toFixed(1)}%)</small></strong> 
+                        <span>${v.toLocaleString('pt-BR', {style:'currency', currency:'BRL'})}</span>
+                    </div>
+                    <div style="background:#334155; height:10px; border-radius:10px;">
+                        <div style="background:#00d4ff; width:${perc}%; height:100%; border-radius:10px; box-shadow:0 0 12px #00d4ff"></div>
+                    </div>
                 </div>`;
         });
 
@@ -187,7 +212,19 @@ const UI = {
         const dias = Object.keys(fluxo).sort((a,b) => a-b);
         charts.linha = new Chart(lCtx, {
             type:'line',
-            data: { labels: dias.map(d => `Dia ${d}`), datasets: [{ label:'Fluxo Diário', data: dias.map(d => fluxo[d]), borderColor:'#4ade80', backgroundColor:'rgba(74, 122, 128, 0.2)', fill:true, tension:0.4, pointRadius: 5, pointBackgroundColor: '#4ade80' }] },
+            data: { 
+                labels: dias.map(d => `Dia ${d}`), 
+                datasets: [{ 
+                    label:'Fluxo (R$)', 
+                    data: dias.map(d => fluxo[d]), 
+                    borderColor:'#4ade80', 
+                    backgroundColor:'rgba(74, 222, 128, 0.2)', 
+                    fill:true, 
+                    tension:0.4, 
+                    pointRadius: 6, 
+                    pointBackgroundColor: '#4ade80' 
+                }] 
+            },
             options: { 
                 maintainAspectRatio: false,
                 scales: { 
