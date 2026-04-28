@@ -5,78 +5,23 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Controle Financeiro Pessoal</title>
   <link rel="stylesheet" href="style.css" />
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 </head>
 <body>
 
   <main class="app">
-    <section class="header">
-      <h1>Controle Financeiro</h1>
-      <p>Seu painel financeiro pessoal</p>
-    </section>
-
-    <section class="cards">
-      <div class="card">
-        <span>Saldo</span>
-        <strong id="saldo">R$ 0,00</strong>
-      </div>
-
-      <div class="card entrada">
-        <span>Entradas</span>
-        <strong id="totalEntradas">R$ 0,00</strong>
-      </div>
-
-      <div class="card saida">
-        <span>Gastos</span>
-        <strong id="totalSaidas">R$ 0,00</strong>
-      </div>
-    </section>
-
-    <section class="form-box">
-      <h2>Adicionar movimentação</h2>
-
-      <input type="text" id="descricao" placeholder="O que você comprou? Ex: iFood, Uber, mercado" />
-
-      <input type="number" id="valor" placeholder="Valor" />
-
-      <select id="tipo">
-        <option value="saida">Gasto</option>
-        <option value="entrada">Entrada</option>
-      </select>
-
-      <select id="categoriaManual">
-        <option value="">Categoria automática</option>
-        <option>Alimentação</option>
-        <option>Transporte</option>
-        <option>Mercado</option>
-        <option>Saúde</option>
-        <option>Lazer</option>
-        <option>Casa</option>
-        <option>Assinaturas</option>
-        <option>Renda</option>
-        <option>Outros</option>
-      </select>
-
-      <button onclick="adicionarLancamento()">Adicionar</button>
-    </section>
-
     <section class="dashboard">
       <h2>Resumo por categoria</h2>
       <div id="resumoCategorias"></div>
-    </section>
-
-    <section class="extrato">
-      <div class="extrato-topo">
-        <h2>Extrato</h2>
-        <button class="limpar" onclick="limparTudo()">Limpar tudo</button>
+      
+      <div style="max-width: 300px; margin: 20px auto;">
+        <canvas id="meuGrafico"></canvas>
       </div>
-
-      <div id="listaLancamentos"></div>
     </section>
-  </main>
 
+    </main>
 
-</body>
- <script src="script.js"></script>
+  <script src="script.js"></script>
 
   <script type="module">
     import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
@@ -93,20 +38,16 @@
       measurementId: "G-1E3VZN227W"
     };
 
-    // Inicializa o Firebase e o Banco de Dados
     const app = initializeApp(firebaseConfig);
     const db = getDatabase(app);
     const dbRef = ref(db, 'transacoes/');
 
-    // Cria a ponte para o seu script.js conseguir salvar
     window.salvarNoFirebase = function(dados) {
       set(dbRef, dados);
     };
 
-    // Escuta mudanças no banco e avisa a interface
     onValue(dbRef, (snapshot) => {
       const data = snapshot.val();
-      // Verifica se a função existe no script.js antes de chamar
       if (typeof window.atualizarInterface === 'function') {
           window.atualizarInterface(data || []); 
       }

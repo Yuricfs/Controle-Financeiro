@@ -1,4 +1,4 @@
-// 1. Iniciamos a lista (mantemos o localStorage para o app abrir rápido)
+// 1. Iniciamos a lista
 let lancamentos = JSON.parse(localStorage.getItem("lancamentos")) || [];
 
 const categoriasAutomaticas = {
@@ -26,17 +26,13 @@ function descobrirCategoria(descricao, categoriaManual, tipo) {
   return "Outros";
 }
 
-// --- AJUSTE 1: A FUNÇÃO SALVAR AGORA ENVIA PARA O FIREBASE ---
 function salvar() {
   localStorage.setItem("lancamentos", JSON.stringify(lancamentos));
-  
-  // Chama a função que criamos lá no index.html
   if (typeof window.salvarNoFirebase === 'function') {
     window.salvarNoFirebase(lancamentos);
   }
 }
 
-// --- AJUSTE 2: FUNÇÃO PARA RECEBER DADOS DO FIREBASE E ATUALIZAR A TELA ---
 window.atualizarInterface = function(dadosVindosDoBanco) {
   lancamentos = dadosVindosDoBanco || [];
   atualizarTela();
@@ -70,7 +66,6 @@ function adicionarLancamento() {
   document.getElementById("valor").value = "";
 }
 
-// --- AJUSTE 3: EXPOR FUNÇÕES PARA O HTML (Necessário para onclick funcionar) ---
 window.adicionarLancamento = adicionarLancamento;
 window.excluirLancamento = function(id) {
   lancamentos = lancamentos.filter(item => item.id !== id);
@@ -84,6 +79,38 @@ window.limparTudo = function() {
     atualizarTela();
   }
 };
+
+let chartInstance = null; 
+
+function atualizarGrafico(categorias) {
+  const ctx = document.getElementById('meuGrafico').getContext('2d');
+  if (chartInstance) {
+    chartInstance.destroy();
+  }
+
+  const labels = Object.keys(categorias);
+  const valores = Object.values(categorias);
+
+  chartInstance = new Chart(ctx, {
+    type: 'doughnut',
+    data: {
+      labels: labels,
+      datasets: [{
+        data: valores,
+        backgroundColor: ['#2563eb', '#ef4444', '#22c55e', '#f59e0b', '#8b5cf6', '#ec4899', '#06b6d4'],
+        borderWidth: 0
+      }]
+    },
+    options: {
+      plugins: {
+        legend: {
+          position: 'bottom',
+          labels: { color: '#fff' }
+        }
+      }
+    }
+  });
+}
 
 function atualizarTela() {
   const lista = document.getElementById("listaLancamentos");
@@ -133,6 +160,10 @@ function atualizarTela() {
     lista.innerHTML = "<p>Nenhum lançamento ainda.</p>";
     resumo.innerHTML = "<p>Sem gastos cadastrados.</p>";
   }
+
+  // CHAMADA DO GRÁFICO:
+  atualizarGrafico(categorias);
 }
 
+// Inicializa a tela na primeira vez
 atualizarTela();
