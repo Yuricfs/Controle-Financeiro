@@ -1,174 +1,219 @@
+/* --- CONFIGURAÇÕES GLOBAIS --- */
 * {
-  box-sizing: border-box;
+    box-sizing: border-box;
+    transition: all 0.2s ease-in-out; /* Suaviza todas as mudanças de cor e tamanho */
 }
 
 body {
-  margin: 0;
-  font-family: Arial, sans-serif;
-  background: #0f172a;
-  color: #fff;
+    margin: 0;
+    font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+    background: #0f172a;
+    color: #fff;
+    -webkit-font-smoothing: antialiased;
 }
 
 .app {
-  max-width: 480px;
-  margin: auto;
-  padding: 20px;
+    max-width: 480px;
+    margin: auto;
+    padding: 20px;
+    padding-bottom: 40px;
 }
 
+/* --- CABEÇALHO --- */
 .header {
-  margin-bottom: 20px;
+    margin-bottom: 25px;
 }
 
 .header h1 {
-  margin: 0;
-  font-size: 28px;
+    margin: 0;
+    font-size: 26px;
+    font-weight: 800;
+    letter-spacing: -0.5px;
 }
 
 .header p {
-  margin-top: 6px;
-  color: #94a3b8;
+    margin-top: 4px;
+    color: #94a3b8;
+    font-size: 14px;
 }
 
+/* --- CARDS DE RESUMO --- */
 .cards {
-  display: grid;
-  gap: 12px;
-  margin-bottom: 20px;
+    display: grid;
+    gap: 12px;
+    margin-bottom: 20px;
 }
 
 .card {
-  background: linear-gradient(135deg, #1e293b, #334155);
-  border-radius: 18px;
-  padding: 18px;
+    background: #1e293b;
+    border-radius: 20px;
+    padding: 20px;
+    border: 1px solid rgba(255, 255, 255, 0.05);
 }
 
 .card span {
-  color: #cbd5e1;
-  font-size: 14px;
+    color: #94a3b8;
+    font-size: 13px;
+    font-weight: 600;
+    text-transform: uppercase;
 }
 
 .card strong {
-  display: block;
-  margin-top: 8px;
-  font-size: 24px;
+    display: block;
+    margin-top: 10px;
+    font-size: 26px;
+    letter-spacing: -1px;
 }
 
-.entrada strong {
-  color: #22c55e;
+.entrada strong { color: #4ade80; } /* Verde limão vibrante */
+.saida strong { color: #f87171; }   /* Vermelho suave */
+
+/* --- BARRA DE META --- */
+.meta-container input {
+    margin-bottom: 10px;
+    background: rgba(15, 23, 42, 0.5);
 }
 
-.saida strong {
-  color: #ef4444;
+.progress-bg {
+    height: 10px;
+    background: #334155;
+    border-radius: 10px;
+    overflow: hidden;
+    margin: 12px 0 6px 0;
 }
 
-.form-box,
-.dashboard,
-.extrato {
-  background: #1e293b;
-  padding: 18px;
-  border-radius: 18px;
-  margin-bottom: 20px;
+#progress-bar {
+    height: 100%;
+    width: 0%;
+    background: #2563eb;
+    border-radius: 10px;
+    box-shadow: 0 0 10px rgba(37, 99, 235, 0.3);
 }
 
-h2 {
-  margin-top: 0;
-  font-size: 18px;
+#statusMeta {
+    font-size: 12px;
+    color: #94a3b8;
 }
 
-input,
-select,
+/* --- FORMULÁRIOS E INPUTS --- */
+.form-box, .dashboard, .extrato {
+    background: #1e293b;
+    padding: 20px;
+    border-radius: 20px;
+    margin-bottom: 20px;
+    border: 1px solid rgba(255, 255, 255, 0.05);
+}
+
+input, select, button {
+    width: 100%;
+    padding: 14px;
+    margin-top: 12px;
+    border: 1px solid #334155;
+    border-radius: 12px;
+    font-size: 15px;
+    outline: none;
+}
+
+input, select {
+    background: #0f172a;
+    color: #fff;
+}
+
+input:focus, select:focus {
+    border-color: #2563eb;
+    box-shadow: 0 0 0 4px rgba(37, 99, 235, 0.1);
+}
+
 button {
-  width: 100%;
-  padding: 14px;
-  margin-top: 10px;
-  border: none;
-  border-radius: 12px;
-  font-size: 15px;
+    background: #2563eb;
+    color: #fff;
+    font-weight: 700;
+    border: none;
+    cursor: pointer;
 }
 
-input,
-select {
-  background: #334155;
-  color: #fff;
+button:active {
+    transform: scale(0.98);
 }
 
-input::placeholder {
-  color: #94a3b8;
+/* --- BARRAS DE CATEGORIA (NEON) --- */
+.categoria-linha {
+    margin-bottom: 18px;
 }
 
-button {
-  background: #2563eb;
-  color: #fff;
-  font-weight: bold;
-  cursor: pointer;
+/* Estilo das barras que ficam no dashboard */
+.resumo-barra-bg {
+    background: #334155;
+    height: 8px;
+    border-radius: 10px;
+    margin-top: 8px;
 }
 
-button:hover {
-  opacity: 0.9;
+.resumo-barra-fill {
+    height: 100%;
+    border-radius: 10px;
+    box-shadow: 0 0 12px rgba(0, 212, 255, 0.4);
 }
 
-.extrato-topo {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-}
-
-.limpar {
-  width: auto;
-  background: #ef4444;
-  padding: 8px 12px;
-  font-size: 13px;
-}
-
+/* --- EXTRATO E ITENS --- */
 .item {
-  background: #334155;
-  padding: 14px;
-  border-radius: 14px;
-  margin-top: 10px;
+    background: rgba(51, 65, 85, 0.4);
+    padding: 16px;
+    border-radius: 16px;
+    margin-top: 12px;
+    border: 1px solid rgba(255, 255, 255, 0.03);
 }
 
 .item-topo {
-  display: flex;
-  justify-content: space-between;
-  gap: 10px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 4px;
 }
 
-.item strong {
-  font-size: 15px;
-}
+.item strong { font-size: 16px; color: #f8fafc; }
+
+.valor-entrada { color: #4ade80; font-weight: 700; }
+.valor-saida { color: #f87171; font-weight: 700; }
 
 .item small {
-  display: block;
-  margin-top: 5px;
-  color: #cbd5e1;
+    display: block;
+    color: #64748b;
+    font-size: 12px;
 }
 
-.valor-saida {
-  color: #ef4444;
+.item-acoes {
+    display: flex;
+    gap: 8px;
+    margin-top: 12px;
 }
 
-.valor-entrada {
-  color: #22c55e;
+.item-acoes button {
+    margin-top: 0;
+    padding: 10px;
+    font-size: 13px;
+    background: #334155;
 }
 
-.btn-excluir {
-  background: #475569;
-  margin-top: 10px;
-  font-size: 13px;
+.item-acoes button:first-child {
+    background: #2563eb; /* Editar em azul */
 }
 
-.categoria-linha {
-  margin-top: 10px;
+.item-acoes button:hover {
+    filter: brightness(1.2);
 }
 
-.barra {
-  height: 10px;
-  background: #334155;
-  border-radius: 999px;
-  overflow: hidden;
-  margin-top: 6px;
+/* --- TELA DE LOGIN (Opcional se não usar inline) --- */
+.login-card input::placeholder {
+    color: #64748b;
 }
 
-.barra div {
-  height: 100%;
-  background: #2563eb;
+/* --- ANIMAÇÃO DE ENTRADA --- */
+@keyframes fadeIn {
+    from { opacity: 0; transform: translateY(10px); }
+    to { opacity: 1; transform: translateY(0); }
+}
+
+.item, .card, .form-box {
+    animation: fadeIn 0.3s ease forwards;
 }
