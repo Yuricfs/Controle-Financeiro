@@ -10,16 +10,65 @@
 <body>
 
   <main class="app">
+    <section class="header">
+      <h1>Controle Financeiro</h1>
+      <p>Seu painel financeiro pessoal</p>
+    </section>
+
+    <section class="cards">
+      <div class="card">
+        <span>Saldo</span>
+        <strong id="saldo">R$ 0,00</strong>
+      </div>
+      <div class="card entrada">
+        <span>Entradas</span>
+        <strong id="totalEntradas">R$ 0,00</strong>
+      </div>
+      <div class="card saida">
+        <span>Gastos</span>
+        <strong id="totalSaidas">R$ 0,00</strong>
+      </div>
+    </section>
+
+    <section class="form-box">
+      <h2>Adicionar movimentação</h2>
+      <input type="text" id="descricao" placeholder="O que você comprou? Ex: iFood, Uber..." />
+      <input type="number" id="valor" placeholder="Valor" />
+      <select id="tipo">
+        <option value="saida">Gasto</option>
+        <option value="entrada">Entrada</option>
+      </select>
+      <select id="categoriaManual">
+        <option value="">Categoria automática</option>
+        <option>Alimentação</option>
+        <option>Transporte</option>
+        <option>Mercado</option>
+        <option>Saúde</option>
+        <option>Lazer</option>
+        <option>Casa</option>
+        <option>Assinaturas</option>
+        <option>Renda</option>
+        <option>Outros</option>
+      </select>
+      <button onclick="window.adicionarLancamento()">Adicionar</button>
+    </section>
+
     <section class="dashboard">
       <h2>Resumo por categoria</h2>
       <div id="resumoCategorias"></div>
-      
-      <div style="max-width: 300px; margin: 20px auto;">
+      <div style="max-width: 300px; margin: 30px auto;">
         <canvas id="meuGrafico"></canvas>
       </div>
     </section>
 
-    </main>
+    <section class="extrato">
+      <div class="extrato-topo">
+        <h2>Extrato</h2>
+        <button class="limpar" onclick="window.limparTudo()">Limpar tudo</button>
+      </div>
+      <div id="listaLancamentos"></div>
+    </section>
+  </main>
 
   <script src="script.js"></script>
 
@@ -42,32 +91,14 @@
     const db = getDatabase(app);
     const dbRef = ref(db, 'transacoes/');
 
-    window.salvarNoFirebase = function(dados) {
-      set(dbRef, dados);
-    };
+    window.salvarNoFirebase = (dados) => set(dbRef, dados);
 
     onValue(dbRef, (snapshot) => {
       const data = snapshot.val();
       if (typeof window.atualizarInterface === 'function') {
-          window.atualizarInterface(data || []); 
+        window.atualizarInterface(data || []);
       }
     });
   </script>
-<section class="extrato">
-      <div class="extrato-topo">
-        <h2>Extrato</h2>
-        <button class="limpar" onclick="window.limparTudo()">Limpar tudo</button>
-      </div>
-
-      <div id="listaLancamentos"></div>
-    </section>
-  </main>
-
-  <script src="script.js"></script>
-
-  <script type="module">
-    // ... (seu código do Firebase aqui) ...
-  </script>
-  
-  </body>
+</body>
 </html>

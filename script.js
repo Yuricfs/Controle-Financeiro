@@ -1,5 +1,6 @@
-// 1. Iniciamos a lista
+// Variáveis Globais (Declaradas apenas UMA vez)
 let lancamentos = JSON.parse(localStorage.getItem("lancamentos")) || [];
+let chartInstance = null;
 
 const categoriasAutomaticas = {
   "Alimentação": ["ifood", "restaurante", "lanche", "pizza", "hamburguer", "açaí"],
@@ -12,20 +13,21 @@ const categoriasAutomaticas = {
   "Renda": ["salário", "pix recebido", "freela", "venda", "comissão"]
 };
 
-function formatarMoeda(valor) {
-  return valor.toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
-}
+// Formatação
+const formatarMoeda = (v) => v.toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
 
-function descobrirCategoria(descricao, categoriaManual, tipo) {
-  if (categoriaManual) return categoriaManual;
+// Lógica de Categorias
+function descobrirCategoria(desc, catM, tipo) {
+  if (catM) return catM;
   if (tipo === "entrada") return "Renda";
-  const texto = descricao.toLowerCase();
-  for (const categoria in categoriasAutomaticas) {
-    if (categoriasAutomaticas[categoria].some(palavra => texto.includes(palavra))) return categoria;
+  const texto = desc.toLowerCase();
+  for (const cat in categoriasAutomaticas) {
+    if (categoriasAutomaticas[cat].some(p => texto.includes(p))) return cat;
   }
   return "Outros";
 }
 
+// Persistência
 function salvar() {
   localStorage.setItem("lancamentos", JSON.stringify(lancamentos));
   if (typeof window.salvarNoFirebase === 'function') {
@@ -33,63 +35,63 @@ function salvar() {
   }
 }
 
-window.atualizarInterface = function(dadosVindosDoBanco) {
-  lancamentos = dadosVindosDoBanco || [];
+// Ponte com Firebase
+window.atualizarInterface = function(dados) {
+  lancamentos = dados || [];
   atualizarTela();
 };
 
-function adicionarLancamento() {
-  const descricao = document.getElementById("descricao").value.trim();
-  const valor = Number(document.getElementById("valor").value);
-  const tipo = document.getElementById("tipo").value;
-  const categoriaManual = document.getElementById("categoriaManual").value;
+// Funções do Usuário (Expostas para o HTML)
+window.adicionarLancamento = function() {
+  const desc = document.getElementById("descricao");
+  const val = document.getElementById("valor");
+  const tipo = document.getElementById("tipo");
+  const catM = document.getElementById("categoriaManual");
 
-  if (!descricao || !valor || valor <= 0) {
-    alert("Preencha a descrição e um valor válido.");
+  if (!desc.value || !val.value || val.value <= 0) {
+    alert("Preencha todos os campos corretamente.");
     return;
   }
 
-  const lancamento = {
+  lancamentos.push({
     id: Date.now(),
-    descricao,
-    valor,
-    tipo,
-    categoria: descobrirCategoria(descricao, categoriaManual, tipo),
+    descricao: desc.value.trim(),
+    valor: Number(val.value),
+    tipo: tipo.value,
+    categoria: descobrirCategoria(desc.value, catM.value, tipo.value),
     data: new Date().toLocaleDateString("pt-BR")
-  };
+  });
 
-  lancamentos.push(lancamento);
   salvar();
   atualizarTela();
+  desc.value = ""; val.value = "";
+};
 
-  document.getElementById("descricao").value = "";
-  document.getElementById("valor").value = "";
-}
-
-window.adicionarLancamento = adicionarLancamento;
 window.excluirLancamento = function(id) {
-  lancamentos = lancamentos.filter(item => item.id !== id);
+  lancamentos = lancamentos.filter(i => i.id !== id);
   salvar();
   atualizarTela();
 };
+
 window.limparTudo = function() {
-  if (confirm("Tem certeza que deseja apagar tudo?")) {
+  if (confirm("Deseja apagar todos os dados?")) {
     lancamentos = [];
     salvar();
     atualizarTela();
   }
 };
 
-let chartInstance = null; 
-
+// O GRÁFICO
 function atualizarGrafico(categorias) {
-  const ctx = document.getElementById('meuGrafico').getContext('2d');
-  if (chartInstance) {
-    chartInstance.destroy();
-  }
+  const ctx = document.getElementById('meuGrafico');
+  if (!ctx) return;
+
+  if (chartInstance) chartInstance.destroy();
 
   const labels = Object.keys(categorias);
   const valores = Object.values(categorias);
+
+  if (labels.length === 0) return;
 
   chartInstance = new Chart(ctx, {
     type: 'doughnut',
@@ -103,77 +105,60 @@ function atualizarGrafico(categorias) {
     },
     options: {
       plugins: {
-        legend: {
-          position: 'bottom',
-          labels: { color: '#fff' }
-        }
+        legend: { position: 'bottom', labels: { color: '#fff' } }
       }
     }
   });
 }
 
+// Renderização da Tela
 function atualizarTela() {
   const lista = document.getElementById("listaLancamentos");
   const resumo = document.getElementById("resumoCategorias");
+  const elSaldo = document.getElementById("saldo");
+  const elEnt = document.getElementById("totalEntradas");
+  const elSai = document.getElementById("totalSaidas");
 
-  // Se o site ainda não carregou os elementos, ele para aqui e não dá erro
   if (!lista || !resumo) return;
 
-  let totalEntradas = 0;
-  let totalSaidas = 0;
-  let categorias = {};
-
+  let ent = 0, sai = 0, cats = {};
   lista.innerHTML = "";
-  resumo.innerHTML = "";
-  // ... (restante da função)
-
-  lista.innerHTML = "";
-  resumo.innerHTML = "";
 
   lancamentos.forEach(item => {
-    if (item.tipo === "entrada") {
-      totalEntradas += item.valor;
-    } else {
-      totalSaidas += item.valor;
-      categorias[item.categoria] = (categorias[item.categoria] || 0) + item.valor;
+    if (item.tipo === "entrada") ent += item.valor;
+    else {
+      sai += item.valor;
+      cats[item.categoria] = (cats[item.categoria] || 0) + item.valor;
     }
-
-    const sinal = item.tipo === "entrada" ? "+" : "-";
-    const classeValor = item.tipo === "entrada" ? "valor-entrada" : "valor-saida";
 
     lista.innerHTML = `
       <div class="item">
         <div class="item-topo">
           <strong>${item.descricao}</strong>
-          <strong class="${classeValor}">${sinal} ${formatarMoeda(item.valor)}</strong>
+          <strong class="${item.tipo === 'entrada' ? 'valor-entrada' : 'valor-saida'}">
+            ${item.tipo === 'entrada' ? '+' : '-'} ${formatarMoeda(item.valor)}
+          </strong>
         </div>
         <small>${item.data} • ${item.categoria}</small>
         <button class="btn-excluir" onclick="window.excluirLancamento(${item.id})">Excluir</button>
       </div>` + lista.innerHTML;
   });
 
-  document.getElementById("saldo").innerText = formatarMoeda(totalEntradas - totalSaidas);
-  document.getElementById("totalEntradas").innerText = formatarMoeda(totalEntradas);
-  document.getElementById("totalSaidas").innerText = formatarMoeda(totalSaidas);
+  if (elSaldo) elSaldo.innerText = formatarMoeda(ent - sai);
+  if (elEnt) elEnt.innerText = formatarMoeda(ent);
+  if (elSai) elSai.innerText = formatarMoeda(sai);
 
-  const maiorCategoria = Math.max(...Object.values(categorias), 1);
-  Object.entries(categorias).forEach(([categoria, valor]) => {
-    const porcentagem = (valor / maiorCategoria) * 100;
-    resumo.innerHTML += `
-      <div class="categoria-linha">
-        <strong>${categoria}</strong> <small>${formatarMoeda(valor)}</small>
-        <div class="barra"><div style="width:${porcentagem}%"></div></div>
-      </div>`;
+  resumo.innerHTML = "";
+  Object.entries(cats).forEach(([c, v]) => {
+    resumo.innerHTML += `<div class="categoria-linha"><strong>${c}</strong> <small>${formatarMoeda(v)}</small></div>`;
   });
 
   if (lancamentos.length === 0) {
-    lista.innerHTML = "<p>Nenhum lançamento ainda.</p>";
-    resumo.innerHTML = "<p>Sem gastos cadastrados.</p>";
+    lista.innerHTML = "<p>Nenhum lançamento.</p>";
   }
 
-  // CHAMADA DO GRÁFICO:
-  atualizarGrafico(categorias);
+  atualizarGrafico(cats);
 }
 
-// Inicializa a tela na primeira vez
+// Inicialização
 atualizarTela();
