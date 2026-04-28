@@ -21,7 +21,7 @@
 
     <section class="cards">
       <div class="card">
-        <span>Saldo Período</span>
+        <span>Saldo do Período</span>
         <strong id="saldo">R$ 0,00</strong>
       </div>
       <div class="card meta-container">
@@ -32,14 +32,25 @@
       </div>
     </section>
 
+    <section class="cards">
+      <div class="card entrada">
+        <span>Entradas</span>
+        <strong id="totalEntradas">R$ 0,00</strong>
+      </div>
+      <div class="card saida">
+        <span>Saídas</span>
+        <strong id="totalSaidas">R$ 0,00</strong>
+      </div>
+    </section>
+
     <section class="relatorios" style="display: flex; gap: 10px; margin: 15px 0;">
-        <button onclick="window.exportarPDF()" style="flex: 1; background: #dc2626;">📄 PDF</button>
-        <button onclick="window.exportarExcel()" style="flex: 1; background: #16a34a;">📊 Excel</button>
+        <button onclick="window.exportarPDF()" style="flex: 1; background: #dc2626; color: white; border: none; padding: 10px; border-radius: 5px; cursor: pointer;">📄 Exportar PDF</button>
+        <button onclick="window.exportarExcel()" style="flex: 1; background: #16a34a; color: white; border: none; padding: 10px; border-radius: 5px; cursor: pointer;">📊 Exportar Excel</button>
     </section>
 
     <section class="form-box">
       <h2 id="tituloForm">Novo Lançamento</h2>
-      <input type="text" id="descricao" placeholder="O que foi? (ex: Mercado, Peças)" />
+      <input type="text" id="descricao" placeholder="Descrição (ex: iFood, Oficina)" />
       <input type="number" id="valor" placeholder="Valor R$" />
       
       <div class="form-row" style="display: flex; gap: 10px; margin-bottom: 10px;">
@@ -67,13 +78,13 @@
     </section>
 
     <section class="dashboard">
-      <div class="filtros-topo" style="display: flex; gap: 10px; margin-bottom: 20px;">
+      <div class="filtros-topo" style="display: flex; gap: 10px; margin-bottom: 20px; justify-content: center;">
         <select id="filtroMes" onchange="window.atualizarTela()"></select>
         <select id="filtroAno" onchange="window.atualizarTela()"></select>
       </div>
 
       <div id="alertaRecorrencia" style="display:none; background: #2563eb; color: white; padding: 12px; border-radius: 8px; margin-bottom: 20px; text-align: center;">
-        <p>Mês novo! Importar gastos fixos?</p>
+        <p>Importar seus gastos fixos para este mês?</p>
         <button onclick="window.importarRecorrentes()" style="background: white; color: #2563eb; border: none; padding: 5px 10px; border-radius: 4px; margin-top: 8px; cursor: pointer; font-weight: bold;">Sim, importar</button>
       </div>
 
@@ -88,7 +99,7 @@
     <section class="extrato">
       <input type="text" id="inputBusca" placeholder="🔍 Buscar no extrato..." oninput="window.atualizarTela()" style="margin-bottom: 15px;">
       <div class="extrato-topo">
-        <h2>Extrato</h2>
+        <h2>Histórico</h2>
         <button class="limpar" onclick="window.limparTudo()">Zerar Dados</button>
       </div>
       <div id="listaLancamentos"></div>

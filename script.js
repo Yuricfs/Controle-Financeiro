@@ -1,23 +1,21 @@
-// Única declaração de variáveis globais
 let lancamentos = JSON.parse(localStorage.getItem("lancamentos")) || [];
-let filtradosParaExportar = [];
+let filtradosGlobal = [];
 let chartPizza = null;
 let chartLinha = null;
 let idEdicao = null;
 
 const mesesNomes = ["Janeiro", "Fevereiro", "Março", "Abril", "Maio", "Junho", "Julho", "Agosto", "Setembro", "Outubro", "Novembro", "Dezembro"];
-const dataAgora = new Date();
+const dataAtual = new Date();
 
-// --- CONFIGURAÇÃO ---
 function configurarFiltros() {
     const sMes = document.getElementById("filtroMes");
     const sAno = document.getElementById("filtroAno");
     if (sMes && sMes.options.length === 0) {
         mesesNomes.forEach((m, i) => sMes.add(new Option(m, i + 1)));
-        sMes.value = dataAgora.getMonth() + 1;
+        sMes.value = dataAtual.getMonth() + 1;
     }
     if (sAno && sAno.options.length === 0) {
-        const anoAtual = dataAgora.getFullYear();
+        const anoAtual = dataAtual.getFullYear();
         for (let a = anoAtual - 1; a <= anoAtual + 1; a++) sAno.add(new Option(a, a));
         sAno.value = anoAtual;
     }
@@ -29,10 +27,10 @@ function descobrirCategoria(desc, catM, tipo) {
     if (catM) return catM;
     if (tipo === "entrada") return "Renda";
     const catsAuto = {
-        "Alimentação": ["ifood", "pizza", "burger", "restaurante", "salgado", "lanche"],
+        "Alimentação": ["ifood", "pizza", "burger", "restaurante", "lanche", "comida"],
         "Transporte": ["uber", "99", "gasolina", "posto", "i30", "oficina"],
         "Mercado": ["mercado", "supermercado", "atacadão"],
-        "Casa": ["aluguel", "energia", "internet", "água"]
+        "Casa": ["aluguel", "internet", "energia"]
     };
     const t = desc.toLowerCase();
     for (const c in catsAuto) if (catsAuto[c].some(p => t.includes(p))) return c;
@@ -45,20 +43,19 @@ window.exportarPDF = function() {
     const doc = new jsPDF();
     const mesIdx = document.getElementById("filtroMes").value - 1;
     doc.text(`Relatório Financeiro - ${mesesNomes[mesIdx]}`, 14, 15);
-    
-    const rows = filtradosParaExportar.map(i => [i.data, i.descricao, i.categoria, i.tipo === 'entrada' ? 'Entrada' : 'Gasto', formatarMoeda(i.valor)]);
+    const rows = filtradosGlobal.map(i => [i.data, i.descricao, i.categoria, i.tipo === 'entrada' ? 'Entrada' : 'Gasto', formatarMoeda(i.valor)]);
     doc.autoTable({ head: [['Data', 'Descrição', 'Categoria', 'Tipo', 'Valor']], body: rows, startY: 20 });
-    doc.save(`extrato_${mesesNomes[mesIdx]}.pdf`);
+    doc.save(`financeiro_${mesesNomes[mesIdx]}.pdf`);
 };
 
 window.exportarExcel = function() {
-    const ws = XLSX.utils.json_to_sheet(filtradosParaExportar);
+    const ws = XLSX.utils.json_to_sheet(filtradosGlobal);
     const wb = XLSX.utils.book_new();
-    XLSX.utils.book_append_sheet(wb, ws, "Lançamentos");
-    XLSX.writeFile(wb, "financeiro_pro.xlsx");
+    XLSX.utils.book_append_sheet(wb, ws, "Dados");
+    XLSX.writeFile(wb, "financeiro.xlsx");
 };
 
-// --- AÇÕES ---
+// --- LOGICA ---
 window.salvarMeta = () => {
     const val = document.getElementById("inputMeta").value;
     if (window.salvarMetaFirebase) window.salvarMetaFirebase(Number(val));
@@ -74,17 +71,6 @@ window.importarRecorrentes = function() {
     salvar(); atualizarTela();
 };
 
-window.prepararEdicao = (id) => {
-    const i = lancamentos.find(x => x.id === id);
-    if (!i) return;
-    idEdicao = id;
-    document.getElementById("descricao").value = i.descricao;
-    document.getElementById("valor").value = i.valor;
-    document.getElementById("tipo").value = i.tipo;
-    document.getElementById("tituloForm").innerText = "Editando...";
-    window.scrollTo(0,0);
-};
-
 window.adicionarLancamento = function() {
     const desc = document.getElementById("descricao"), val = document.getElementById("valor"), tipo = document.getElementById("tipo"), catM = document.getElementById("categoriaManual"), rec = document.getElementById("recorrente");
     if (!desc.value || !val.value) return alert("Preencha os campos!");
@@ -98,7 +84,7 @@ window.adicionarLancamento = function() {
         lancamentos.push({ id: Date.now(), descricao: desc.value, valor: Number(val.value), tipo: tipo.value, categoria: descobrirCategoria(desc.value, catM.value, tipo.value), recorrente: rec.checked, data: new Date().toLocaleDateString("pt-BR") });
     }
     salvar(); atualizarTela();
-    desc.value = ""; val.value = "";
+    desc.value = ""; val.value = ""; rec.checked = false;
 };
 
 function salvar() {
@@ -107,31 +93,30 @@ function salvar() {
 }
 
 window.atualizarInterface = (d) => { lancamentos = d || []; atualizarTela(); };
+window.excluirLancamento = (id) => { if(confirm("Excluir?")) { lancamentos = lancamentos.filter(x => x.id !== id); salvar(); atualizarTela(); } };
+window.prepararEdicao = (id) => { idEdicao = id; const i = lancamentos.find(x => x.id === id); document.getElementById("descricao").value = i.descricao; document.getElementById("valor").value = i.valor; document.getElementById("tituloForm").innerText = "Editando..."; window.scrollTo(0,0); };
+window.limparTudo = () => { if(confirm("Limpar tudo?")) { lancamentos = []; salvar(); atualizarTela(); } };
 
-window.excluirLancamento = (id) => { if (confirm("Excluir?")) { lancamentos = lancamentos.filter(x => x.id !== id); salvar(); atualizarTela(); } };
-window.limparTudo = () => { if (confirm("Zerar?")) { lancamentos = []; salvar(); atualizarTela(); } };
-
-// --- RENDER ---
 function atualizarTela() {
     configurarFiltros();
     const mesS = document.getElementById("filtroMes").value;
     const anoS = document.getElementById("filtroAno").value;
     const busca = document.getElementById("inputBusca").value.toLowerCase();
 
-    filtradosParaExportar = lancamentos.filter(i => {
+    filtradosGlobal = lancamentos.filter(i => {
         const [d, m, a] = i.data.split('/');
         return Number(m) == mesS && Number(a) == anoS && i.descricao.toLowerCase().includes(busca);
     });
 
     const alerta = document.getElementById("alertaRecorrencia");
-    if (filtradosParaExportar.length === 0 && lancamentos.some(i => i.recorrente)) alerta.style.display = "block";
+    if (filtradosGlobal.length === 0 && lancamentos.some(i => i.recorrente)) alerta.style.display = "block";
     else alerta.style.display = "none";
 
     const lista = document.getElementById("listaLancamentos"), resumo = document.getElementById("resumoCategorias");
     let ent = 0, sai = 0, cats = {};
 
     lista.innerHTML = ""; resumo.innerHTML = "";
-    filtradosParaExportar.forEach(i => {
+    filtradosGlobal.forEach(i => {
         if (i.tipo === "entrada") ent += i.valor;
         else { sai += i.valor; cats[i.categoria] = (cats[i.categoria] || 0) + i.valor; }
         
@@ -160,17 +145,22 @@ function atualizarTela() {
         stat.innerText = `${p.toFixed(0)}% da meta atingida`;
     }
 
-    // Barras de Categoria
+    // Barras de Categorias (Resumo)
     Object.entries(cats).forEach(([c, v]) => {
-        resumo.innerHTML += `<div class="categoria-linha"><strong>${c}</strong> <span>${formatarMoeda(v)}</span></div>`;
+        resumo.innerHTML += `
+            <div class="categoria-linha" style="margin-bottom:10px;">
+                <div style="display:flex; justify-content:space-between;"><strong>${c}</strong> <span>${formatarMoeda(v)}</span></div>
+                <div style="background:#334155; height:5px; border-radius:10px; margin-top:5px;">
+                    <div style="background:#3b82f6; width:${Math.min((v/ent)*100 || 100, 100)}%; height:100%; border-radius:10px;"></div>
+                </div>
+            </div>`;
     });
 
-    desenharGraficos(filtradosParaExportar, cats);
+    desenharGraficos(filtradosGlobal, cats);
 }
 
 function desenharGraficos(filtrados, cats) {
     const pCtx = document.getElementById('meuGrafico'), lCtx = document.getElementById('graficoLinha');
-    if (!pCtx || !lCtx) return;
     if (chartPizza) chartPizza.destroy(); if (chartLinha) chartLinha.destroy();
 
     chartPizza = new Chart(pCtx, { type: 'doughnut', data: { labels: Object.keys(cats), datasets: [{ data: Object.values(cats), backgroundColor: ['#3b82f6', '#ef4444', '#10b981', '#f59e0b', '#8b5cf6'] }] }, options: { plugins: { legend: { labels: { color: '#fff' } } } } });
