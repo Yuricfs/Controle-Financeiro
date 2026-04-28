@@ -32,7 +32,7 @@
 
     <section class="form-box">
       <h2>Nova movimentação</h2>
-      <input type="text" id="descricao" placeholder="Descrição (ex: Mercado, Salário)" />
+      <input type="text" id="descricao" placeholder="Descrição (ex: i30, Supermercado)" />
       <input type="number" id="valor" placeholder="Valor" />
       <select id="tipo">
         <option value="saida">Gasto</option>
@@ -56,26 +56,26 @@
     <section class="dashboard">
       <h2>Análise de Período</h2>
       
-      <div class="filtros" style="display: flex; gap: 10px; margin-bottom: 20px; justify-content: center;">
+      <div class="filtros" style="display: flex; gap: 10px; margin-bottom: 25px; justify-content: center;">
         <select id="filtroMes" onchange="window.atualizarTela()"></select>
         <select id="filtroAno" onchange="window.atualizarTela()"></select>
       </div>
 
-      <div class="graficos-grid">
-        <div class="chart-box">
+      <div class="graficos-grid" style="display: flex; flex-direction: column; gap: 40px;">
+        <div style="max-width: 350px; margin: 0 auto; width: 100%;">
           <canvas id="meuGrafico"></canvas>
         </div>
-        <div class="chart-box">
+        <div style="width: 100%; height: 300px;">
           <canvas id="graficoLinha"></canvas>
         </div>
       </div>
 
-      <div id="resumoCategorias"></div>
+      <div id="resumoCategorias" style="margin-top: 20px;"></div>
     </section>
 
     <section class="extrato">
       <div class="extrato-topo">
-        <h2>Extrato do Mês</h2>
+        <h2>Extrato</h2>
         <button class="limpar" onclick="window.limparTudo()">Limpar tudo</button>
       </div>
       <div id="listaLancamentos"></div>

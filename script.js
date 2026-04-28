@@ -1,12 +1,12 @@
+// Variáveis Globais (Declaradas APENAS uma vez)
 let lancamentos = JSON.parse(localStorage.getItem("lancamentos")) || [];
 let chartPizza = null;
 let chartLinha = null;
 
-// Configuração de meses para o filtro
 const mesesNomes = ["Janeiro", "Fevereiro", "Março", "Abril", "Maio", "Junho", "Julho", "Agosto", "Setembro", "Outubro", "Novembro", "Dezembro"];
 const dataAgora = new Date();
 
-// Inicializa os filtros se estiverem vazios
+// 1. Configura os seletores de Mes/Ano
 function configurarFiltros() {
     const sMes = document.getElementById("filtroMes");
     const sAno = document.getElementById("filtroAno");
@@ -29,9 +29,9 @@ function descobrirCategoria(desc, catM, tipo) {
     if (tipo === "entrada") return "Renda";
     const catsAuto = {
         "Alimentação": ["ifood", "pizza", "burger", "lanche", "restaurante"],
-        "Transporte": ["uber", "99", "gasolina", "posto"],
-        "Mercado": ["mercado", "supermercado", "assaí"],
-        "Lazer": ["cinema", "show", "bar", "praia"]
+        "Transporte": ["uber", "99", "gasolina", "posto", "i30"],
+        "Mercado": ["mercado", "supermercado", "atacadão"],
+        "Lazer": ["cinema", "bar", "praia", "show"]
     };
     const t = desc.toLowerCase();
     for (const c in catsAuto) {
@@ -45,7 +45,10 @@ function salvar() {
     if (typeof window.salvarNoFirebase === 'function') window.salvarNoFirebase(lancamentos);
 }
 
-window.atualizarInterface = (dados) => { lancamentos = dados || []; atualizarTela(); };
+window.atualizarInterface = (dados) => { 
+    lancamentos = dados || []; 
+    atualizarTela(); 
+};
 
 window.adicionarLancamento = function() {
     const desc = document.getElementById("descricao");
@@ -76,10 +79,10 @@ window.excluirLancamento = (id) => {
 };
 
 window.limparTudo = () => {
-    if (confirm("Apagar tudo?")) { lancamentos = []; salvar(); atualizarTela(); }
+    if (confirm("Apagar todos os dados?")) { lancamentos = []; salvar(); atualizarTela(); }
 };
 
-// --- GRÁFICOS ---
+// --- GRÁFICOS TURBINADOS ---
 function desenharGraficos(dadosFiltrados, categorias) {
     const pizzaCtx = document.getElementById('meuGrafico');
     const linhaCtx = document.getElementById('graficoLinha');
@@ -87,22 +90,21 @@ function desenharGraficos(dadosFiltrados, categorias) {
     if (chartPizza) chartPizza.destroy();
     if (chartLinha) chartLinha.destroy();
 
-    // Gráfico de Pizza (Categorias)
-    if (Object.keys(categorias).length > 0) {
-        chartPizza = new Chart(pizzaCtx, {
-            type: 'doughnut',
-            data: {
-                labels: Object.keys(categorias),
-                datasets: [{
-                    data: Object.values(categorias),
-                    backgroundColor: ['#2563eb', '#ef4444', '#22c55e', '#f59e0b', '#8b5cf6']
-                }]
-            },
-            options: { plugins: { legend: { position: 'bottom', labels: { color: '#fff' } } } }
-        });
-    }
+    // 1. Gráfico de Pizza
+    chartPizza = new Chart(pizzaCtx, {
+        type: 'doughnut',
+        data: {
+            labels: Object.keys(categorias),
+            datasets: [{
+                data: Object.values(categorias),
+                backgroundColor: ['#2563eb', '#ef4444', '#22c55e', '#f59e0b', '#8b5cf6', '#ec4899'],
+                borderWidth: 0
+            }]
+        },
+        options: { plugins: { legend: { position: 'bottom', labels: { color: '#ffffff' } } } }
+    });
 
-    // Gráfico de Linha (Evolução Diária)
+    // 2. Gráfico de Linha (Com escala clara e R$)
     const fluxoDiario = {};
     dadosFiltrados.forEach(i => {
         const dia = i.data.split('/')[0];
@@ -110,6 +112,7 @@ function desenharGraficos(dadosFiltrados, categorias) {
     });
 
     const diasSorted = Object.keys(fluxoDiario).sort((a, b) => a - b);
+    
     chartLinha = new Chart(linhaCtx, {
         type: 'line',
         data: {
@@ -117,13 +120,32 @@ function desenharGraficos(dadosFiltrados, categorias) {
             datasets: [{
                 label: 'Fluxo de Caixa',
                 data: diasSorted.map(d => fluxoDiario[d]),
-                borderColor: '#22c55e',
-                backgroundColor: 'rgba(34, 197, 94, 0.1)',
+                borderColor: '#4ade80',
+                backgroundColor: 'rgba(74, 222, 128, 0.1)',
                 fill: true,
-                tension: 0.4
+                tension: 0.4,
+                pointRadius: 6,
+                pointBackgroundColor: '#4ade80'
             }]
         },
-        options: { scales: { y: { ticks: { color: '#fff' } }, x: { ticks: { color: '#fff' } } } }
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            scales: {
+                y: {
+                    grid: { color: 'rgba(255, 255, 255, 0.1)' },
+                    ticks: { 
+                        color: '#ffffff', 
+                        font: { weight: 'bold' },
+                        callback: (value) => 'R$ ' + value 
+                    }
+                },
+                x: {
+                    ticks: { color: '#ffffff', font: { weight: 'bold' } }
+                }
+            },
+            plugins: { legend: { labels: { color: '#ffffff' } } }
+        }
     });
 }
 
@@ -132,7 +154,6 @@ function atualizarTela() {
     const mesS = document.getElementById("filtroMes").value;
     const anoS = document.getElementById("filtroAno").value;
 
-    // Filtra os dados pelo mês e ano selecionados
     const filtrados = lancamentos.filter(i => {
         const [d, m, a] = i.data.split('/');
         return Number(m) == mesS && Number(a) == anoS;
@@ -172,9 +193,10 @@ function atualizarTela() {
         resumo.innerHTML += `<div class="categoria-linha"><strong>${c}</strong> <small>${formatarMoeda(v)}</small></div>`;
     });
 
-    desenharGraficos(filtrados, cats);
+    if (filtrados.length > 0) desenharGraficos(filtrados, cats);
 }
 
 // Inicialização
+configurarFiltros();
 atualizarTela();
 window.atualizarTela = atualizarTela;
