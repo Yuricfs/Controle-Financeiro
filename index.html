@@ -16,7 +16,7 @@
   <main class="app">
     <section class="header">
       <h1>Controle Financeiro</h1>
-      <p>Gestão de Dados Inteligente</p>
+      <p>Dashboard de Performance</p>
     </section>
 
     <section class="cards">
@@ -33,24 +33,18 @@
     </section>
 
     <section class="cards">
-      <div class="card entrada">
-        <span>Entradas</span>
-        <strong id="totalEntradas">R$ 0,00</strong>
-      </div>
-      <div class="card saida">
-        <span>Saídas</span>
-        <strong id="totalSaidas">R$ 0,00</strong>
-      </div>
+      <div class="card entrada"><span>Entradas</span><strong id="totalEntradas">R$ 0,00</strong></div>
+      <div class="card saida"><span>Saídas</span><strong id="totalSaidas">R$ 0,00</strong></div>
     </section>
 
     <section class="relatorios" style="display: flex; gap: 10px; margin: 15px 0;">
-        <button onclick="window.exportarPDF()" style="flex: 1; background: #dc2626; color: white; border: none; padding: 10px; border-radius: 5px; cursor: pointer;">📄 Exportar PDF</button>
-        <button onclick="window.exportarExcel()" style="flex: 1; background: #16a34a; color: white; border: none; padding: 10px; border-radius: 5px; cursor: pointer;">📊 Exportar Excel</button>
+        <button onclick="window.exportarPDF()" style="flex: 1; background: #dc2626; color: white; border: none; padding: 12px; border-radius: 8px; cursor: pointer; font-weight: bold;">📄 Exportar PDF</button>
+        <button onclick="window.exportarExcel()" style="flex: 1; background: #16a34a; color: white; border: none; padding: 12px; border-radius: 8px; cursor: pointer; font-weight: bold;">📊 Exportar Excel</button>
     </section>
 
     <section class="form-box">
       <h2 id="tituloForm">Novo Lançamento</h2>
-      <input type="text" id="descricao" placeholder="Descrição (ex: iFood, Oficina)" />
+      <input type="text" id="descricao" placeholder="Descrição (ex: iFood, Posto)" />
       <input type="number" id="valor" placeholder="Valor R$" />
       
       <div class="form-row" style="display: flex; gap: 10px; margin-bottom: 10px;">
@@ -78,29 +72,29 @@
     </section>
 
     <section class="dashboard">
-      <div class="filtros-topo" style="display: flex; gap: 10px; margin-bottom: 20px; justify-content: center;">
+      <div class="filtros-topo" style="display: flex; gap: 10px; margin-bottom: 25px; justify-content: center;">
         <select id="filtroMes" onchange="window.atualizarTela()"></select>
         <select id="filtroAno" onchange="window.atualizarTela()"></select>
       </div>
 
-      <div id="alertaRecorrencia" style="display:none; background: #2563eb; color: white; padding: 12px; border-radius: 8px; margin-bottom: 20px; text-align: center;">
+      <div id="alertaRecorrencia" style="display:none; background: #2563eb; color: white; padding: 15px; border-radius: 8px; margin-bottom: 20px; text-align: center;">
         <p>Importar seus gastos fixos para este mês?</p>
-        <button onclick="window.importarRecorrentes()" style="background: white; color: #2563eb; border: none; padding: 5px 10px; border-radius: 4px; margin-top: 8px; cursor: pointer; font-weight: bold;">Sim, importar</button>
+        <button onclick="window.importarRecorrentes()" style="background: white; color: #2563eb; border: none; padding: 8px 15px; border-radius: 4px; margin-top: 10px; cursor: pointer; font-weight: bold;">Sim, importar</button>
       </div>
 
-      <div class="graficos-grid" style="display: flex; flex-direction: column; gap: 30px;">
-        <div style="max-width: 300px; margin: 0 auto; width: 100%;"><canvas id="meuGrafico"></canvas></div>
-        <div style="width: 100%; height: 260px;"><canvas id="graficoLinha"></canvas></div>
+      <div class="graficos-grid" style="display: flex; flex-direction: column; gap: 40px;">
+        <div style="max-width: 320px; margin: 0 auto; width: 100%;"><canvas id="meuGrafico"></canvas></div>
+        <div style="width: 100%; height: 280px;"><canvas id="graficoLinha"></canvas></div>
       </div>
 
-      <div id="resumoCategorias" style="margin-top: 25px;"></div>
+      <div id="resumoCategorias" style="margin-top: 30px;"></div>
     </section>
 
     <section class="extrato">
-      <input type="text" id="inputBusca" placeholder="🔍 Buscar no extrato..." oninput="window.atualizarTela()" style="margin-bottom: 15px;">
+      <input type="text" id="inputBusca" placeholder="🔍 Buscar no histórico..." oninput="window.atualizarTela()" style="margin-bottom: 20px;">
       <div class="extrato-topo">
-        <h2>Histórico</h2>
-        <button class="limpar" onclick="window.limparTudo()">Zerar Dados</button>
+        <h2>Extrato</h2>
+        <button class="limpar" onclick="window.limparTudo()">Limpar Tudo</button>
       </div>
       <div id="listaLancamentos"></div>
     </section>
@@ -139,8 +133,7 @@
     onValue(metaRef, (snapshot) => {
       const valor = snapshot.val();
       if (valor !== null) {
-        const inputMeta = document.getElementById("inputMeta");
-        if (inputMeta) inputMeta.value = valor;
+        document.getElementById("inputMeta").value = valor;
         window.atualizarTela();
       }
     });
