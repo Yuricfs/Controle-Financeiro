@@ -1,9 +1,7 @@
-/**
- * APP MODULE: Gerencia dados e ações
- */
 const App = {
     state: {
-        lancamentos: JSON.parse(localStorage.getItem("lancamentos")) || [],
+        user: null,
+        lancamentos: [],
         filtrados: [],
         idEdicao: null,
         charts: { pizza: null, linha: null }
@@ -11,8 +9,17 @@ const App = {
 
     init() {
         this.configFilters();
-        this.bindDB();
-        this.updateUI();
+    },
+
+    setUser(user) {
+        this.state.user = user;
+        // Inicia escuta do Firebase específica para este UID
+        if (window.FB) {
+            window.FB.listen(user.uid, 
+                (data) => { this.state.lancamentos = data || []; this.updateUI(); },
+                (meta) => { if(meta) document.getElementById("inputMeta").value = meta; this.updateUI(); }
+            );
+        }
     },
 
     configFilters() {
@@ -29,19 +36,17 @@ const App = {
         }
     },
 
-    bindDB() {
-        const check = setInterval(() => {
-            if (window.DB) {
-                window.DB.onDataChange(data => { this.state.lancamentos = data || []; this.updateUI(); });
-                window.DB.onMetaChange(val => { if (val !== null) document.getElementById("inputMeta").value = val; this.updateUI(); });
-                clearInterval(check);
-            }
-        }, 500);
+    handleGoogleAuth() { window.AuthActions.google(); },
+    handleEmailAuth() {
+        const e = document.getElementById("email-login").value;
+        const p = document.getElementById("pass-login").value;
+        if(e && p) window.AuthActions.email(e, p);
     },
+    handleLogout() { window.AuthActions.logout(); },
 
     handleSave() {
         const d = document.getElementById("descricao"), v = document.getElementById("valor"), t = document.getElementById("tipo"), c = document.getElementById("categoriaManual"), r = document.getElementById("recorrente");
-        if (!d.value || !v.value) return alert("Preencha descrição e valor!");
+        if (!d.value || !v.value) return alert("Preencha os campos!");
 
         const novo = {
             id: this.state.idEdicao || Date.now(),
@@ -69,15 +74,14 @@ const App = {
     autoCategory(desc, tipo) {
         if (tipo === "entrada") return "Renda";
         const t = desc.toLowerCase();
-        if (t.includes("ifood") || t.includes("salgado") || t.includes("comida") || t.includes("lanche")) return "Alimentação";
-        if (t.includes("uber") || t.includes("posto") || t.includes("gasolina") || t.includes("i30") || t.includes("oficina")) return "Transporte";
+        if (t.includes("ifood") || t.includes("salgado") || t.includes("comida")) return "Alimentação";
+        if (t.includes("uber") || t.includes("posto") || t.includes("gasolina") || t.includes("i30")) return "Transporte";
         return "Outros";
     },
 
     handleMetaChange() {
         const val = document.getElementById("inputMeta").value;
-        if (window.DB) window.DB.saveMeta(Number(val));
-        this.updateUI();
+        if (this.state.user) window.FB.saveMeta(this.state.user.uid, Number(val));
     },
 
     importRecurring() {
@@ -94,8 +98,6 @@ const App = {
         this.state.idEdicao = id;
         document.getElementById("descricao").value = i.descricao;
         document.getElementById("valor").value = i.valor;
-        document.getElementById("tipo").value = i.tipo;
-        document.getElementById("recorrente").checked = i.recorrente || false;
         document.getElementById("btnSalvar").innerText = "Salvar Alterações";
         window.scrollTo({ top: 0, behavior: 'smooth' });
     },
@@ -104,9 +106,9 @@ const App = {
     clearAll() { if (confirm("Limpar tudo?")) { this.state.lancamentos = []; this.persist(); } },
 
     persist() {
-        localStorage.setItem("lancamentos", JSON.stringify(this.state.lancamentos));
-        if (window.DB) window.DB.saveTransactions(this.state.lancamentos);
-        this.updateUI();
+        if (this.state.user) {
+            window.FB.save(this.state.user.uid, this.state.lancamentos);
+        }
     },
 
     updateUI() {
@@ -122,7 +124,7 @@ const App = {
     exportPDF() {
         const { jsPDF } = window.jspdf;
         const doc = new jsPDF();
-        doc.text("Extrato Financeiro - ADS Pro", 14, 15);
+        doc.text("Extrato Financeiro", 14, 15);
         const rows = this.state.filtrados.map(i => [i.data, i.descricao, i.categoria, i.valor.toLocaleString('pt-BR', {style:'currency', currency:'BRL'})]);
         doc.autoTable({ head: [['Data', 'Item', 'Categoria', 'Valor']], body: rows, startY: 20 });
         doc.save("extrato.pdf");
@@ -136,9 +138,6 @@ const App = {
     }
 };
 
-/**
- * UI MODULE: Cuida do visual
- */
 const UI = {
     render(filtrados, total, charts) {
         let ent = 0, sai = 0, cats = {};
@@ -149,7 +148,6 @@ const UI = {
             if (i.tipo === "entrada") ent += i.valor;
             else { sai += i.valor; cats[i.categoria] = (cats[i.categoria] || 0) + i.valor; }
 
-            // EXTRATO RESTAURADO COM DATA E CATEGORIA
             lista.innerHTML = `
                 <div class="item">
                     <div class="item-topo"><strong>${i.recorrente ? '📌 ' : ''}${i.descricao}</strong> <span class="${i.tipo === 'entrada' ? 'valor-entrada' : 'valor-saida'}">${i.valor.toLocaleString('pt-BR', {style:'currency', currency:'BRL'})}</span></div>
@@ -175,10 +173,8 @@ const UI = {
             stat.innerText = `${p.toFixed(1)}% da meta utilizada`;
         }
 
-        // Alerta Recorrência
         document.getElementById("alertaRecorrencia").style.display = (filtrados.length === 0 && total.some(i => i.recorrente)) ? "block" : "none";
 
-        // RESUMO POR CATEGORIAS RESTAURADO (NEON)
         Object.entries(cats).forEach(([c, v]) => {
             const perc = (v / Math.max(sai, 1)) * 100;
             resumo.innerHTML += `
@@ -212,27 +208,8 @@ const UI = {
         const dias = Object.keys(fluxo).sort((a,b) => a-b);
         charts.linha = new Chart(lCtx, {
             type:'line',
-            data: { 
-                labels: dias.map(d => `Dia ${d}`), 
-                datasets: [{ 
-                    label:'Fluxo (R$)', 
-                    data: dias.map(d => fluxo[d]), 
-                    borderColor:'#4ade80', 
-                    backgroundColor:'rgba(74, 222, 128, 0.2)', 
-                    fill:true, 
-                    tension:0.4, 
-                    pointRadius: 6, 
-                    pointBackgroundColor: '#4ade80' 
-                }] 
-            },
-            options: { 
-                maintainAspectRatio: false,
-                scales: { 
-                    y: { grid: { color: 'rgba(255,255,255,0.1)' }, ticks: { color: '#fff', callback: v => 'R$ '+v } }, 
-                    x: { ticks: { color: '#fff' } } 
-                }, 
-                plugins: { legend: { labels: { color: '#fff' } } } 
-            }
+            data: { labels: dias.map(d => `Dia ${d}`), datasets: [{ label:'Fluxo (R$)', data: dias.map(d => fluxo[d]), borderColor:'#4ade80', backgroundColor:'rgba(74, 222, 128, 0.2)', fill:true, tension:0.4, pointRadius: 6, pointBackgroundColor: '#4ade80' }] },
+            options: { maintainAspectRatio: false, scales: { y: { grid: { color: 'rgba(255,255,255,0.1)' }, ticks: { color: '#fff', callback: v => 'R$ '+v } }, x: { ticks: { color: '#fff' } } }, plugins: { legend: { labels: { color: '#fff' } } } }
         });
     }
 };
