@@ -1,12 +1,15 @@
+// Variáveis Globais (Declaradas APENAS uma vez)
 let lancamentos = JSON.parse(localStorage.getItem("lancamentos")) || [];
 let chartPizza = null, chartLinha = null, idEdicao = null;
 
 const mesesNomes = ["Janeiro", "Fevereiro", "Março", "Abril", "Maio", "Junho", "Julho", "Agosto", "Setembro", "Outubro", "Novembro", "Dezembro"];
 const dataAgora = new Date();
 
+// --- FUNÇÕES DE CONFIGURAÇÃO ---
 function configurarFiltros() {
     const sMes = document.getElementById("filtroMes");
     const sAno = document.getElementById("filtroAno");
+
     if (sMes && sMes.options.length === 0) {
         mesesNomes.forEach((m, i) => sMes.add(new Option(m, i + 1)));
         sMes.value = dataAgora.getMonth() + 1;
@@ -27,7 +30,8 @@ function descobrirCategoria(desc, catM, tipo) {
         "Alimentação": ["ifood", "pizza", "burger", "lanche", "restaurante", "salgado"],
         "Transporte": ["uber", "99", "gasolina", "posto", "i30", "oficina"],
         "Mercado": ["mercado", "supermercado", "atacadão"],
-        "Casa": ["aluguel", "energia", "internet", "água"]
+        "Lazer": ["cinema", "bar", "show", "praia"],
+        "Casa": ["aluguel", "energia", "água", "internet"]
     };
     const t = desc.toLowerCase();
     for (const c in catsAuto) {
@@ -36,6 +40,7 @@ function descobrirCategoria(desc, catM, tipo) {
     return "Outros";
 }
 
+// --- PERSISTÊNCIA DE DADOS ---
 window.salvarMeta = () => {
     const valor = document.getElementById("inputMeta").value;
     if (window.salvarMetaFirebase) window.salvarMetaFirebase(Number(valor));
@@ -49,12 +54,11 @@ function salvar() {
 
 window.atualizarInterface = (dados) => { lancamentos = dados || []; atualizarTela(); };
 
-// --- FUNCIONALIDADE 3: RECORRÊNCIA INTELIGENTE ---
+// --- LÓGICA DE RECORRÊNCIA INTELIGENTE ---
 window.importarRecorrentes = function() {
     const mesS = document.getElementById("filtroMes").value;
     const anoS = document.getElementById("filtroAno").value;
     
-    // Busca itens recorrentes de QUALQUER mês anterior
     const recorrentes = lancamentos.filter(i => i.recorrente === true);
     const unicos = [];
     const descricoes = new Set();
@@ -75,6 +79,7 @@ window.importarRecorrentes = function() {
     atualizarTela();
 };
 
+// --- CRUD ---
 window.prepararEdicao = function(id) {
     const item = lancamentos.find(i => i.id === id);
     if (!item) return;
@@ -96,7 +101,7 @@ window.adicionarLancamento = function() {
     const catM = document.getElementById("categoriaManual");
     const rec = document.getElementById("recorrente");
 
-    if (!desc.value || !val.value) return alert("Preencha os campos!");
+    if (!desc.value || !val.value) return alert("Preencha todos os campos!");
 
     if (idEdicao) {
         const index = lancamentos.findIndex(i => i.id === idEdicao);
@@ -115,8 +120,36 @@ window.adicionarLancamento = function() {
 
 window.excluirLancamento = (id) => { if (confirm("Excluir?")) { lancamentos = lancamentos.filter(i => i.id !== id); salvar(); atualizarTela(); } };
 
-window.limparTudo = () => { if (confirm("Zerar?")) { lancamentos = []; salvar(); atualizarTela(); } };
+window.limparTudo = () => { if (confirm("Deseja zerar o extrato?")) { lancamentos = []; salvar(); atualizarTela(); } };
 
+// --- GRÁFICOS ---
+function desenharGraficos(filtrados, cats) {
+    const pizzaCtx = document.getElementById('meuGrafico');
+    const linhaCtx = document.getElementById('graficoLinha');
+    if (chartPizza) chartPizza.destroy();
+    if (chartLinha) chartLinha.destroy();
+
+    chartPizza = new Chart(pizzaCtx, {
+        type: 'doughnut',
+        data: { labels: Object.keys(cats), datasets: [{ data: Object.values(cats), backgroundColor: ['#2563eb', '#ef4444', '#22c55e', '#f59e0b', '#8b5cf6'], borderWidth: 0 }] },
+        options: { plugins: { legend: { position: 'bottom', labels: { color: '#ffffff' } } } }
+    });
+
+    const fluxoDiario = {};
+    filtrados.forEach(i => {
+        const dia = i.data.split('/')[0];
+        fluxoDiario[dia] = (fluxoDiario[dia] || 0) + (i.tipo === 'entrada' ? i.valor : -i.valor);
+    });
+    const diasSorted = Object.keys(fluxoDiario).sort((a,b) => a-b);
+    
+    chartLinha = new Chart(linhaCtx, {
+        type: 'line',
+        data: { labels: diasSorted.map(d => `Dia ${d}`), datasets: [{ label: 'Fluxo', data: diasSorted.map(d => fluxoDiario[d]), borderColor: '#4ade80', backgroundColor: 'rgba(74, 222, 128, 0.1)', fill: true, tension: 0.4, pointBackgroundColor: '#4ade80' }] },
+        options: { scales: { y: { grid: { color: 'rgba(255, 255, 255, 0.1)' }, ticks: { color: '#ffffff', font: { weight: 'bold' }, callback: v => 'R$ '+v } }, x: { ticks: { color: '#ffffff' } } }, plugins: { legend: { labels: { color: '#ffffff' } } } }
+    });
+}
+
+// --- RENDERIZAÇÃO ---
 function atualizarTela() {
     configurarFiltros();
     const mesS = document.getElementById("filtroMes").value;
@@ -125,10 +158,9 @@ function atualizarTela() {
 
     const filtrados = lancamentos.filter(i => {
         const [d, m, a] = i.data.split('/');
-        return Number(m) == mesS && Number(a) == anoS && (i.descricao.toLowerCase().includes(busca));
+        return Number(m) == mesS && Number(a) == anoS && i.descricao.toLowerCase().includes(busca);
     });
 
-    // Alerta de Recorrência
     const alerta = document.getElementById("alertaRecorrencia");
     if (filtrados.length === 0 && lancamentos.some(i => i.recorrente)) alerta.style.display = "block";
     else alerta.style.display = "none";
@@ -157,7 +189,7 @@ function atualizarTela() {
     document.getElementById("totalEntradas").innerText = formatarMoeda(ent);
     document.getElementById("totalSaidas").innerText = formatarMoeda(sai);
 
-    // --- FUNCIONALIDADE 4: LÓGICA DA META ---
+    // LÓGICA DA META (Visual)
     const meta = Number(document.getElementById("inputMeta").value) || 0;
     const progresso = document.getElementById("progress-bar");
     const status = document.getElementById("statusMeta");
@@ -167,34 +199,12 @@ function atualizarTela() {
         progresso.style.width = perc + "%";
         progresso.style.backgroundColor = perc > 100 ? "#ef4444" : perc > 80 ? "#f59e0b" : "#22c55e";
         status.innerText = `${perc.toFixed(1)}% da meta utilizada`;
+    } else {
+        progresso.style.width = "0%";
+        status.innerText = "Sem meta definida.";
     }
 
     desenharGraficos(filtrados, cats);
-}
-
-function desenharGraficos(filtrados, cats) {
-    const pizzaCtx = document.getElementById('meuGrafico');
-    const linhaCtx = document.getElementById('graficoLinha');
-    if (chartPizza) chartPizza.destroy();
-    if (chartLinha) chartLinha.destroy();
-
-    chartPizza = new Chart(pizzaCtx, {
-        type: 'doughnut',
-        data: { labels: Object.keys(cats), datasets: [{ data: Object.values(cats), backgroundColor: ['#2563eb', '#ef4444', '#22c55e', '#f59e0b', '#8b5cf6'] }] },
-        options: { plugins: { legend: { position: 'bottom', labels: { color: '#fff' } } } }
-    });
-
-    const fluxo = {};
-    filtrados.forEach(i => {
-        const d = i.data.split('/')[0];
-        fluxo[d] = (fluxo[d] || 0) + (i.tipo === 'entrada' ? i.valor : -i.valor);
-    });
-    const dias = Object.keys(fluxo).sort((a,b) => a-b);
-    chartLinha = new Chart(linhaCtx, {
-        type: 'line',
-        data: { labels: dias.map(d => `Dia ${d}`), datasets: [{ label: 'Saldo', data: dias.map(d => fluxo[d]), borderColor: '#4ade80', backgroundColor: 'rgba(74, 222, 128, 0.1)', fill: true, tension: 0.4 }] },
-        options: { scales: { y: { ticks: { color: '#fff', callback: v => 'R$ '+v } }, x: { ticks: { color: '#fff' } } } }
-    });
 }
 
 configurarFiltros();
