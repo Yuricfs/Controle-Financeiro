@@ -1,16 +1,14 @@
-// Variáveis Globais (Declaradas APENAS uma vez)
 let lancamentos = JSON.parse(localStorage.getItem("lancamentos")) || [];
 let chartPizza = null;
 let chartLinha = null;
+let idEdicao = null; // Variável de controle para Edição
 
 const mesesNomes = ["Janeiro", "Fevereiro", "Março", "Abril", "Maio", "Junho", "Julho", "Agosto", "Setembro", "Outubro", "Novembro", "Dezembro"];
 const dataAgora = new Date();
 
-// 1. Configura os seletores de Mes/Ano
 function configurarFiltros() {
     const sMes = document.getElementById("filtroMes");
     const sAno = document.getElementById("filtroAno");
-
     if (sMes && sMes.options.length === 0) {
         mesesNomes.forEach((m, i) => sMes.add(new Option(m, i + 1)));
         sMes.value = dataAgora.getMonth() + 1;
@@ -28,10 +26,11 @@ function descobrirCategoria(desc, catM, tipo) {
     if (catM) return catM;
     if (tipo === "entrada") return "Renda";
     const catsAuto = {
-        "Alimentação": ["ifood", "pizza", "burger", "lanche", "restaurante"],
-        "Transporte": ["uber", "99", "gasolina", "posto", "i30"],
+        "Alimentação": ["ifood", "pizza", "burger", "lanche", "restaurante", "salgado"],
+        "Transporte": ["uber", "99", "gasolina", "posto", "i30", "oficina"],
         "Mercado": ["mercado", "supermercado", "atacadão"],
-        "Lazer": ["cinema", "bar", "praia", "show"]
+        "Lazer": ["cinema", "bar", "praia", "show"],
+        "Casa": ["aluguel", "energia", "internet", "água"]
     };
     const t = desc.toLowerCase();
     for (const c in catsAuto) {
@@ -45,107 +44,133 @@ function salvar() {
     if (typeof window.salvarNoFirebase === 'function') window.salvarNoFirebase(lancamentos);
 }
 
-window.atualizarInterface = (dados) => { 
-    lancamentos = dados || []; 
-    atualizarTela(); 
+window.atualizarInterface = (dados) => { lancamentos = dados || []; atualizarTela(); };
+
+// FUNÇÃO 2: PREPARAR EDIÇÃO (Preenche o formulário)
+window.prepararEdicao = function(id) {
+    const item = lancamentos.find(i => i.id === id);
+    if (!item) return;
+
+    idEdicao = id;
+    document.getElementById("descricao").value = item.descricao;
+    document.getElementById("valor").value = item.valor;
+    document.getElementById("tipo").value = item.tipo;
+    document.getElementById("categoriaManual").value = item.categoria;
+    document.getElementById("recorrente").checked = item.recorrente || false;
+
+    document.getElementById("tituloForm").innerText = "Editando Lançamento";
+    document.getElementById("btnSalvar").innerText = "Salvar Alterações";
+    
+    // Adiciona botão cancelar
+    if (!document.getElementById("btnCancelar")) {
+        const btnC = document.createElement("button");
+        btnC.id = "btnCancelar";
+        btnC.innerText = "Cancelar";
+        btnC.style.backgroundColor = "#666";
+        btnC.onclick = cancelarEdicao;
+        document.getElementById("botoesAcao").appendChild(btnC);
+    }
+    window.scrollTo({ top: 0, behavior: 'smooth' });
 };
+
+function cancelarEdicao() {
+    idEdicao = null;
+    document.getElementById("descricao").value = "";
+    document.getElementById("valor").value = "";
+    document.getElementById("tituloForm").innerText = "Nova movimentação";
+    document.getElementById("btnSalvar").innerText = "Adicionar";
+    const btnC = document.getElementById("btnCancelar");
+    if (btnC) btnC.remove();
+}
 
 window.adicionarLancamento = function() {
     const desc = document.getElementById("descricao");
     const val = document.getElementById("valor");
     const tipo = document.getElementById("tipo");
     const catM = document.getElementById("categoriaManual");
+    const rec = document.getElementById("recorrente");
 
     if (!desc.value || !val.value) return alert("Preencha os campos!");
 
-    lancamentos.push({
-        id: Date.now(),
-        descricao: desc.value.trim(),
-        valor: Number(val.value),
-        tipo: tipo.value,
-        categoria: descobrirCategoria(desc.value, catM.value, tipo.value),
-        data: new Date().toLocaleDateString("pt-BR")
-    });
+    if (idEdicao) {
+        // Lógica de Atualização (Update)
+        const index = lancamentos.findIndex(i => i.id === idEdicao);
+        lancamentos[index] = {
+            ...lancamentos[index],
+            descricao: desc.value.trim(),
+            valor: Number(val.value),
+            tipo: tipo.value,
+            categoria: descobrirCategoria(desc.value, catM.value, tipo.value),
+            recorrente: rec.checked
+        };
+        cancelarEdicao();
+    } else {
+        // Lógica de Inserção (Create)
+        lancamentos.push({
+            id: Date.now(),
+            descricao: desc.value.trim(),
+            valor: Number(val.value),
+            tipo: tipo.value,
+            categoria: descobrirCategoria(desc.value, catM.value, tipo.value),
+            recorrente: rec.checked,
+            data: new Date().toLocaleDateString("pt-BR")
+        });
+    }
 
     salvar();
     atualizarTela();
-    desc.value = ""; val.value = "";
+    desc.value = ""; val.value = ""; rec.checked = false;
 };
 
 window.excluirLancamento = (id) => {
-    lancamentos = lancamentos.filter(i => i.id !== id);
-    salvar();
-    atualizarTela();
+    if (confirm("Excluir este lançamento?")) {
+        lancamentos = lancamentos.filter(i => i.id !== id);
+        salvar();
+        atualizarTela();
+    }
 };
 
 window.limparTudo = () => {
-    if (confirm("Apagar todos os dados?")) { lancamentos = []; salvar(); atualizarTela(); }
+    if (confirm("Apagar tudo?")) { lancamentos = []; salvar(); atualizarTela(); }
 };
 
-// --- GRÁFICOS TURBINADOS ---
-function desenharGraficos(dadosFiltrados, categorias) {
+// GRÁFICOS (Mantidos e Ajustados)
+function desenharGraficos(filtrados, cats) {
     const pizzaCtx = document.getElementById('meuGrafico');
     const linhaCtx = document.getElementById('graficoLinha');
-
     if (chartPizza) chartPizza.destroy();
     if (chartLinha) chartLinha.destroy();
 
-    // 1. Gráfico de Pizza
     chartPizza = new Chart(pizzaCtx, {
         type: 'doughnut',
         data: {
-            labels: Object.keys(categorias),
-            datasets: [{
-                data: Object.values(categorias),
-                backgroundColor: ['#2563eb', '#ef4444', '#22c55e', '#f59e0b', '#8b5cf6', '#ec4899'],
-                borderWidth: 0
-            }]
+            labels: Object.keys(cats),
+            datasets: [{ data: Object.values(cats), backgroundColor: ['#2563eb', '#ef4444', '#22c55e', '#f59e0b', '#8b5cf6'] }]
         },
-        options: { plugins: { legend: { position: 'bottom', labels: { color: '#ffffff' } } } }
+        options: { plugins: { legend: { position: 'bottom', labels: { color: '#fff' } } } }
     });
 
-    // 2. Gráfico de Linha (Com escala clara e R$)
-    const fluxoDiario = {};
-    dadosFiltrados.forEach(i => {
-        const dia = i.data.split('/')[0];
-        fluxoDiario[dia] = (fluxoDiario[dia] || 0) + (i.tipo === 'entrada' ? i.valor : -i.valor);
+    const fluxo = {};
+    filtrados.forEach(i => {
+        const d = i.data.split('/')[0];
+        fluxo[d] = (fluxo[d] || 0) + (i.tipo === 'entrada' ? i.valor : -i.valor);
     });
-
-    const diasSorted = Object.keys(fluxoDiario).sort((a, b) => a - b);
+    const dias = Object.keys(fluxo).sort((a,b) => a-b);
     
     chartLinha = new Chart(linhaCtx, {
         type: 'line',
         data: {
-            labels: diasSorted.map(d => `Dia ${d}`),
+            labels: dias.map(d => `Dia ${d}`),
             datasets: [{
-                label: 'Fluxo de Caixa',
-                data: diasSorted.map(d => fluxoDiario[d]),
+                label: 'Fluxo',
+                data: dias.map(d => fluxo[d]),
                 borderColor: '#4ade80',
-                backgroundColor: 'rgba(74, 222, 128, 0.1)',
                 fill: true,
-                tension: 0.4,
-                pointRadius: 6,
-                pointBackgroundColor: '#4ade80'
+                backgroundColor: 'rgba(74, 222, 128, 0.1)',
+                tension: 0.4
             }]
         },
-        options: {
-            responsive: true,
-            maintainAspectRatio: false,
-            scales: {
-                y: {
-                    grid: { color: 'rgba(255, 255, 255, 0.1)' },
-                    ticks: { 
-                        color: '#ffffff', 
-                        font: { weight: 'bold' },
-                        callback: (value) => 'R$ ' + value 
-                    }
-                },
-                x: {
-                    ticks: { color: '#ffffff', font: { weight: 'bold' } }
-                }
-            },
-            plugins: { legend: { labels: { color: '#ffffff' } } }
-        }
+        options: { scales: { y: { ticks: { color: '#fff', callback: v => 'R$ '+v } }, x: { ticks: { color: '#fff' } } } }
     });
 }
 
@@ -153,14 +178,17 @@ function atualizarTela() {
     configurarFiltros();
     const mesS = document.getElementById("filtroMes").value;
     const anoS = document.getElementById("filtroAno").value;
+    const busca = document.getElementById("inputBusca").value.toLowerCase();
 
+    // Filtro Combinado: Data + Busca (Funcionalidade 2)
     const filtrados = lancamentos.filter(i => {
         const [d, m, a] = i.data.split('/');
-        return Number(m) == mesS && Number(a) == anoS;
+        const pertenceAoMes = Number(m) == mesS && Number(a) == anoS;
+        const coincideBusca = i.descricao.toLowerCase().includes(busca) || i.categoria.toLowerCase().includes(busca);
+        return pertenceAoMes && coincideBusca;
     });
 
     const lista = document.getElementById("listaLancamentos");
-    const resumo = document.getElementById("resumoCategorias");
     let ent = 0, sai = 0, cats = {};
 
     lista.innerHTML = "";
@@ -172,15 +200,18 @@ function atualizarTela() {
         }
 
         lista.innerHTML = `
-            <div class="item">
+            <div class="item ${i.recorrente ? 'item-recorrente' : ''}">
                 <div class="item-topo">
-                    <strong>${i.descricao}</strong>
+                    <strong>${i.recorrente ? '📌 ' : ''}${i.descricao}</strong>
                     <span class="${i.tipo === 'entrada' ? 'valor-entrada' : 'valor-saida'}">
-                        ${i.tipo === 'entrada' ? '+' : '-'} ${formatarMoeda(i.valor)}
+                        ${formatarMoeda(i.valor)}
                     </span>
                 </div>
                 <small>${i.data} • ${i.categoria}</small>
-                <button class="btn-excluir" onclick="window.excluirLancamento(${i.id})">Excluir</button>
+                <div class="item-acoes">
+                    <button class="btn-edit" onclick="window.prepararEdicao(${i.id})">Editar</button>
+                    <button class="btn-excluir" onclick="window.excluirLancamento(${i.id})">Excluir</button>
+                </div>
             </div>` + lista.innerHTML;
     });
 
@@ -188,15 +219,9 @@ function atualizarTela() {
     document.getElementById("totalEntradas").innerText = formatarMoeda(ent);
     document.getElementById("totalSaidas").innerText = formatarMoeda(sai);
 
-    resumo.innerHTML = "";
-    Object.entries(cats).forEach(([c, v]) => {
-        resumo.innerHTML += `<div class="categoria-linha"><strong>${c}</strong> <small>${formatarMoeda(v)}</small></div>`;
-    });
-
-    if (filtrados.length > 0) desenharGraficos(filtrados, cats);
+    desenharGraficos(filtrados, cats);
 }
 
-// Inicialização
 configurarFiltros();
 atualizarTela();
 window.atualizarTela = atualizarTela;

@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Controle Financeiro Pro</title>
+  <title>Controle Financeiro Pro +</title>
   <link rel="stylesheet" href="style.css" />
   <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 </head>
@@ -12,68 +12,63 @@
   <main class="app">
     <section class="header">
       <h1>Controle Financeiro</h1>
-      <p>Seu painel financeiro pessoal</p>
+      <p>Gestão Inteligente</p>
     </section>
 
     <section class="cards">
-      <div class="card">
-        <span>Saldo do Período</span>
-        <strong id="saldo">R$ 0,00</strong>
-      </div>
-      <div class="card entrada">
-        <span>Entradas</span>
-        <strong id="totalEntradas">R$ 0,00</strong>
-      </div>
-      <div class="card saida">
-        <span>Gastos</span>
-        <strong id="totalSaidas">R$ 0,00</strong>
-      </div>
+      <div class="card"><span>Saldo Período</span><strong id="saldo">R$ 0,00</strong></div>
+      <div class="card entrada"><span>Entradas</span><strong id="totalEntradas">R$ 0,00</strong></div>
+      <div class="card saida"><span>Gastos</span><strong id="totalSaidas">R$ 0,00</strong></div>
     </section>
 
     <section class="form-box">
-      <h2>Nova movimentação</h2>
-      <input type="text" id="descricao" placeholder="Descrição (ex: i30, Supermercado)" />
+      <h2 id="tituloForm">Nova movimentação</h2>
+      <input type="text" id="descricao" placeholder="Descrição (ex: Aluguel, Venda i30)" />
       <input type="number" id="valor" placeholder="Valor" />
-      <select id="tipo">
-        <option value="saida">Gasto</option>
-        <option value="entrada">Entrada</option>
-      </select>
-      <select id="categoriaManual">
-        <option value="">Categoria automática</option>
-        <option>Alimentação</option>
-        <option>Transporte</option>
-        <option>Mercado</option>
-        <option>Saúde</option>
-        <option>Lazer</option>
-        <option>Casa</option>
-        <option>Assinaturas</option>
-        <option>Renda</option>
-        <option>Outros</option>
-      </select>
-      <button onclick="window.adicionarLancamento()">Adicionar</button>
+      
+      <div class="form-row" style="display: flex; gap: 10px; margin-bottom: 10px;">
+        <select id="tipo" style="flex: 1;">
+          <option value="saida">Gasto</option>
+          <option value="entrada">Entrada</option>
+        </select>
+        <select id="categoriaManual" style="flex: 1;">
+          <option value="">Automática</option>
+          <option>Alimentação</option>
+          <option>Transporte</option>
+          <option>Mercado</option>
+          <option>Lazer</option>
+          <option>Casa</option>
+          <option>Renda</option>
+        </select>
+      </div>
+
+      <div style="margin-bottom: 15px; display: flex; align-items: center; gap: 8px; color: #fff; font-size: 0.9rem;">
+        <input type="checkbox" id="recorrente" style="width: auto;"> 
+        <label for="recorrente">Gasto Fixo (Recorrente)</label>
+      </div>
+
+      <div id="botoesAcao">
+        <button id="btnSalvar" onclick="window.adicionarLancamento()">Adicionar</button>
+      </div>
     </section>
 
     <section class="dashboard">
-      <h2>Análise de Período</h2>
-      
-      <div class="filtros" style="display: flex; gap: 10px; margin-bottom: 25px; justify-content: center;">
+      <div class="filtros-topo">
         <select id="filtroMes" onchange="window.atualizarTela()"></select>
         <select id="filtroAno" onchange="window.atualizarTela()"></select>
       </div>
 
-      <div class="graficos-grid" style="display: flex; flex-direction: column; gap: 40px;">
-        <div style="max-width: 350px; margin: 0 auto; width: 100%;">
-          <canvas id="meuGrafico"></canvas>
-        </div>
-        <div style="width: 100%; height: 300px;">
-          <canvas id="graficoLinha"></canvas>
-        </div>
+      <div class="graficos-grid">
+        <div class="chart-container"><canvas id="meuGrafico"></canvas></div>
+        <div class="chart-container" style="height: 250px;"><canvas id="graficoLinha"></canvas></div>
       </div>
-
-      <div id="resumoCategorias" style="margin-top: 20px;"></div>
     </section>
 
     <section class="extrato">
+      <div class="busca-container" style="margin-bottom: 20px;">
+        <input type="text" id="inputBusca" placeholder="🔍 Buscar no extrato..." oninput="window.atualizarTela()">
+      </div>
+
       <div class="extrato-topo">
         <h2>Extrato</h2>
         <button class="limpar" onclick="window.limparTudo()">Limpar tudo</button>
