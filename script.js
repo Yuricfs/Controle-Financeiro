@@ -10,18 +10,15 @@ const App = {
 
     init() { this.configFilters(); },
 
-    // --- NOVA FUNÇÃO: ALTERNA LOGIN / CADASTRO ---
     toggleAuthMode() {
         this.state.isRegistering = !this.state.isRegistering;
         const isReg = this.state.isRegistering;
-        
         document.getElementById("auth-title").innerText = isReg ? "Criar Conta" : "Bem-vindo";
         document.getElementById("group-nome").style.display = isReg ? "block" : "none";
         document.getElementById("btn-entrar").innerText = isReg ? "Cadastrar Agora" : "Entrar";
         document.getElementById("toggle-auth-text").innerHTML = isReg ? 
             'Já tem conta? <a href="javascript:void(0)" onclick="App.toggleAuthMode()" style="color: #2563eb; text-decoration: none; font-weight: bold;">Fazer Login</a>' :
             'Ainda não tem conta? <a href="javascript:void(0)" onclick="App.toggleAuthMode()" style="color: #2563eb; text-decoration: none; font-weight: bold;">Cadastre-se</a>';
-        
         document.getElementById("login-error-msg").style.display = "none";
     },
 
@@ -55,7 +52,6 @@ const App = {
             
             if (this.state.isRegistering) {
                 const credential = await window.AuthActions.register(e, p);
-                // Salva o nome no perfil do usuário no Database
                 await window.FB.savePerfil(credential.user.uid, nome);
             } else {
                 await window.AuthActions.login(e, p);
@@ -66,7 +62,6 @@ const App = {
             if (error.code === 'auth/weak-password') msg = "Senha deve ter no mínimo 6 caracteres.";
             if (error.code === 'auth/wrong-password') msg = "Senha incorreta!";
             if (error.code === 'auth/too-many-requests') msg = "Muitas tentativas. Aguarde 5 min.";
-            
             errorDiv.innerText = msg;
             errorDiv.style.display = "block";
             btn.innerText = this.state.isRegistering ? "Cadastrar Agora" : "Entrar";
@@ -112,6 +107,7 @@ const App = {
         this.persist();
         d.value = ""; v.value = ""; r.checked = false;
         document.getElementById("btnSalvar").innerText = "Adicionar";
+        document.getElementById("tituloForm").innerText = "Novo Lançamento";
     },
 
     autoCategory(desc, tipo) {
@@ -127,12 +123,32 @@ const App = {
         if (this.state.user) window.FB.saveMeta(this.state.user.uid, Number(val));
     },
 
+    importRecurring() {
+        const m = document.getElementById("filtroMes").value, a = document.getElementById("filtroAno").value;
+        const novos = this.state.lancamentos.filter(i => i.recorrente === true).map(i => ({ ...i, id: Date.now() + Math.random(), data: `01/${m.padStart(2, '0')}/${a}` }));
+        this.state.lancamentos = [...this.state.lancamentos, ...novos];
+        this.persist();
+    },
+
+    prepareEdit(id) {
+        const i = this.state.lancamentos.find(x => x.id === id);
+        this.state.idEdicao = id;
+        document.getElementById("descricao").value = i.descricao; document.getElementById("valor").value = i.valor; 
+        document.getElementById("tipo").value = i.tipo; document.getElementById("categoriaManual").value = i.categoria;
+        document.getElementById("btnSalvar").innerText = "Salvar Alterações";
+        document.getElementById("tituloForm").innerText = "Editando...";
+        window.scrollTo({ top: 0, behavior: 'smooth' });
+    },
+
+    deleteItem(id) { if (confirm("Excluir?")) { this.state.lancamentos = this.state.lancamentos.filter(x => x.id !== id); this.persist(); } },
+    clearAll() { if (confirm("Zerar tudo?")) { this.state.lancamentos = []; this.persist(); } },
+
     persist() { if (this.state.user) window.FB.save(this.state.user.uid, this.state.lancamentos); this.updateUI(); },
 
     updateUI() {
         const m = document.getElementById("filtroMes").value, a = document.getElementById("filtroAno").value, b = document.getElementById("inputBusca").value.toLowerCase();
         this.state.filtrados = this.state.lancamentos.filter(i => { const [, mes, ano] = i.data.split('/'); return Number(mes) == m && Number(ano) == a && i.descricao.toLowerCase().includes(b); });
-        UI.render(this.state.filtrados, this.state.charts);
+        UI.render(this.state.filtrados, this.state.lancamentos, this.state.charts);
     },
 
     exportPDF() {
@@ -149,10 +165,11 @@ const App = {
 };
 
 const UI = {
-    render(filtrados, charts) {
+    render(filtrados, total, charts) {
         let ent = 0, sai = 0, cats = {};
         const lista = document.getElementById("listaLancamentos"), resumo = document.getElementById("resumoCategorias");
         lista.innerHTML = ""; resumo.innerHTML = "";
+        
         filtrados.forEach(i => {
             if (i.tipo === "entrada") ent += i.valor;
             else { sai += i.valor; cats[i.categoria] = (cats[i.categoria] || 0) + i.valor; }
@@ -166,11 +183,17 @@ const UI = {
                     </div>
                 </div>` + lista.innerHTML;
         });
+
         document.getElementById("saldo").innerText = (ent-sai).toLocaleString('pt-BR', {style:'currency', currency:'BRL'});
+        document.getElementById("totalEntradas").innerText = ent.toLocaleString('pt-BR', {style:'currency', currency:'BRL'});
+        document.getElementById("totalSaidas").innerText = sai.toLocaleString('pt-BR', {style:'currency', currency:'BRL'});
+
         const meta = Number(document.getElementById("inputMeta").value) || 0;
         const bar = document.getElementById("progress-bar"), stat = document.getElementById("statusMeta");
         if (meta > 0) { const p = Math.min((sai/meta)*100, 100); bar.style.width = p+"%"; bar.style.backgroundColor = p > 90 ? "#ef4444" : "#22c55e"; stat.innerText = `${p.toFixed(1)}% da meta`; }
         
+        document.getElementById("alertaRecorrencia").style.display = (filtrados.length === 0 && total.some(i => i.recorrente)) ? "block" : "none";
+
         Object.entries(cats).forEach(([c, v]) => {
             const perc = (v / Math.max(sai, 1)) * 100;
             resumo.innerHTML += `<div class="categoria-linha" style="margin-bottom:20px;"><div style="display:flex; justify-content:space-between; margin-bottom:8px;"><strong>${c} <small style="color:#00d4ff">(${perc.toFixed(1)}%)</small></strong> <span>${v.toLocaleString('pt-BR', {style:'currency', currency:'BRL'})}</span></div><div style="background:#334155; height:10px; border-radius:10px;"><div style="background:#00d4ff; width:${perc}%; height:100%; border-radius:10px; box-shadow:0 0 12px #00d4ff"></div></div></div>`;
