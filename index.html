@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Controle Financeiro Pessoal</title>
+  <title>Controle Financeiro Pro</title>
   <link rel="stylesheet" href="style.css" />
   <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 </head>
@@ -17,7 +17,7 @@
 
     <section class="cards">
       <div class="card">
-        <span>Saldo</span>
+        <span>Saldo do Período</span>
         <strong id="saldo">R$ 0,00</strong>
       </div>
       <div class="card entrada">
@@ -31,8 +31,8 @@
     </section>
 
     <section class="form-box">
-      <h2>Adicionar movimentação</h2>
-      <input type="text" id="descricao" placeholder="O que você comprou? Ex: iFood, Uber..." />
+      <h2>Nova movimentação</h2>
+      <input type="text" id="descricao" placeholder="Descrição (ex: Mercado, Salário)" />
       <input type="number" id="valor" placeholder="Valor" />
       <select id="tipo">
         <option value="saida">Gasto</option>
@@ -54,16 +54,28 @@
     </section>
 
     <section class="dashboard">
-      <h2>Resumo por categoria</h2>
-      <div id="resumoCategorias"></div>
-      <div style="max-width: 300px; margin: 30px auto;">
-        <canvas id="meuGrafico"></canvas>
+      <h2>Análise de Período</h2>
+      
+      <div class="filtros" style="display: flex; gap: 10px; margin-bottom: 20px; justify-content: center;">
+        <select id="filtroMes" onchange="window.atualizarTela()"></select>
+        <select id="filtroAno" onchange="window.atualizarTela()"></select>
       </div>
+
+      <div class="graficos-grid">
+        <div class="chart-box">
+          <canvas id="meuGrafico"></canvas>
+        </div>
+        <div class="chart-box">
+          <canvas id="graficoLinha"></canvas>
+        </div>
+      </div>
+
+      <div id="resumoCategorias"></div>
     </section>
 
     <section class="extrato">
       <div class="extrato-topo">
-        <h2>Extrato</h2>
+        <h2>Extrato do Mês</h2>
         <button class="limpar" onclick="window.limparTudo()">Limpar tudo</button>
       </div>
       <div id="listaLancamentos"></div>
