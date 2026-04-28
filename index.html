@@ -3,36 +3,43 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Controle Financeiro Pro - ADS Edition</title>
+  <title>Controle Financeiro Pro</title>
   <link rel="stylesheet" href="style.css" />
+  
   <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.5.25/jspdf.plugin.autotable.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
 </head>
 <body>
 
   <main class="app">
     <section class="header">
       <h1>Controle Financeiro</h1>
-      <p>Gestão Inteligente</p>
+      <p>Gestão de Dados Inteligente</p>
     </section>
 
     <section class="cards">
-      <div class="card"><span>Saldo do Mês</span><strong id="saldo">R$ 0,00</strong></div>
+      <div class="card">
+        <span>Saldo Período</span>
+        <strong id="saldo">R$ 0,00</strong>
+      </div>
       <div class="card meta-container">
-        <span>Meta Mensal</span>
-        <input type="number" id="inputMeta" placeholder="R$ 0,00" onchange="window.salvarMeta()">
+        <span>Meta Mensal de Gastos</span>
+        <input type="number" id="inputMeta" placeholder="Definir R$" onchange="window.salvarMeta()">
         <div class="progress-bg"><div id="progress-bar"></div></div>
-        <small id="statusMeta" style="color: #ccc;"></small>
+        <small id="statusMeta"></small>
       </div>
     </section>
 
-    <section class="cards">
-      <div class="card entrada"><span>Ganhos</span><strong id="totalEntradas">R$ 0,00</strong></div>
-      <div class="card saida"><span>Gastos</span><strong id="totalSaidas">R$ 0,00</strong></div>
+    <section class="relatorios" style="display: flex; gap: 10px; margin: 15px 0;">
+        <button onclick="window.exportarPDF()" style="flex: 1; background: #dc2626;">📄 PDF</button>
+        <button onclick="window.exportarExcel()" style="flex: 1; background: #16a34a;">📊 Excel</button>
     </section>
 
     <section class="form-box">
       <h2 id="tituloForm">Novo Lançamento</h2>
-      <input type="text" id="descricao" placeholder="O que foi? (ex: Revisão i30)" />
+      <input type="text" id="descricao" placeholder="O que foi? (ex: Mercado, Peças)" />
       <input type="number" id="valor" placeholder="Valor R$" />
       
       <div class="form-row" style="display: flex; gap: 10px; margin-bottom: 10px;">
@@ -41,16 +48,13 @@
           <option value="entrada">Entrada</option>
         </select>
         <select id="categoriaManual" style="flex: 1;">
-          <option value="">Categoria Auto</option>
+          <option value="">Automática</option>
           <option>Alimentação</option>
           <option>Transporte</option>
           <option>Mercado</option>
           <option>Lazer</option>
           <option>Casa</option>
-          <option>Saúde</option>
-          <option>Assinaturas</option>
           <option>Renda</option>
-          <option>Outros</option>
         </select>
       </div>
 
@@ -59,37 +63,33 @@
         <label for="recorrente">Gasto Fixo (Recorrente)</label>
       </div>
 
-      <div id="botoesAcao">
-        <button id="btnSalvar" onclick="window.adicionarLancamento()">Adicionar</button>
-      </div>
+      <button id="btnSalvar" onclick="window.adicionarLancamento()">Adicionar</button>
     </section>
 
     <section class="dashboard">
-      <div class="filtros-topo" style="display: flex; gap: 10px; margin-bottom: 25px;">
+      <div class="filtros-topo" style="display: flex; gap: 10px; margin-bottom: 20px;">
         <select id="filtroMes" onchange="window.atualizarTela()"></select>
         <select id="filtroAno" onchange="window.atualizarTela()"></select>
       </div>
 
-      <div id="alertaRecorrencia" style="display:none; background: #2563eb; color: white; padding: 15px; border-radius: 8px; margin-bottom: 20px; text-align: center;">
-        <p>Mês novo detectado! Importar gastos fixos?</p>
-        <button onclick="window.importarRecorrentes()" style="background: white; color: #2563eb; border: none; padding: 8px 15px; border-radius: 4px; margin-top: 10px; font-weight: bold; cursor: pointer;">Sim, importar agora</button>
+      <div id="alertaRecorrencia" style="display:none; background: #2563eb; color: white; padding: 12px; border-radius: 8px; margin-bottom: 20px; text-align: center;">
+        <p>Mês novo! Importar gastos fixos?</p>
+        <button onclick="window.importarRecorrentes()" style="background: white; color: #2563eb; border: none; padding: 5px 10px; border-radius: 4px; margin-top: 8px; cursor: pointer; font-weight: bold;">Sim, importar</button>
       </div>
 
       <div class="graficos-grid" style="display: flex; flex-direction: column; gap: 30px;">
         <div style="max-width: 300px; margin: 0 auto; width: 100%;"><canvas id="meuGrafico"></canvas></div>
-        <div style="width: 100%; height: 280px;"><canvas id="graficoLinha"></canvas></div>
+        <div style="width: 100%; height: 260px;"><canvas id="graficoLinha"></canvas></div>
       </div>
 
-      <div id="resumoCategorias" style="margin-top: 30px;"></div>
+      <div id="resumoCategorias" style="margin-top: 25px;"></div>
     </section>
 
     <section class="extrato">
-      <div class="busca-container" style="margin-bottom: 20px;">
-        <input type="text" id="inputBusca" placeholder="🔍 Pesquisar no extrato..." oninput="window.atualizarTela()">
-      </div>
+      <input type="text" id="inputBusca" placeholder="🔍 Buscar no extrato..." oninput="window.atualizarTela()" style="margin-bottom: 15px;">
       <div class="extrato-topo">
-        <h2>Histórico</h2>
-        <button class="limpar" onclick="window.limparTudo()">Limpar Tudo</button>
+        <h2>Extrato</h2>
+        <button class="limpar" onclick="window.limparTudo()">Zerar Dados</button>
       </div>
       <div id="listaLancamentos"></div>
     </section>
@@ -127,8 +127,9 @@
 
     onValue(metaRef, (snapshot) => {
       const valor = snapshot.val();
-      if (valor) {
-        document.getElementById("inputMeta").value = valor;
+      if (valor !== null) {
+        const inputMeta = document.getElementById("inputMeta");
+        if (inputMeta) inputMeta.value = valor;
         window.atualizarTela();
       }
     });
