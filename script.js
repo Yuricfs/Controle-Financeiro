@@ -19,6 +19,19 @@ const App = {
         }
     },
 
+    // --- NOVA FUNÇÃO: OLHO DA SENHA ---
+    togglePasswordVisibility() {
+        const passInput = document.getElementById("pass-login");
+        const eyeIcon = document.getElementById("togglePassword");
+        if (passInput.type === "password") {
+            passInput.type = "text";
+            eyeIcon.classList.replace("fa-eye", "fa-eye-slash");
+        } else {
+            passInput.type = "password";
+            eyeIcon.classList.replace("fa-eye-slash", "fa-eye");
+        }
+    },
+
     configFilters() {
         const sMes = document.getElementById("filtroMes"), sAno = document.getElementById("filtroAno");
         if (sMes && sMes.options.length === 0) {
@@ -34,34 +47,69 @@ const App = {
     },
 
     handleGoogleAuth() { window.AuthActions.google(); },
-    handleEmailAuth() {
-        const e = document.getElementById("email-login").value, p = document.getElementById("pass-login").value;
-        if(e && p) window.AuthActions.email(e, p);
+
+    // --- CORREÇÃO DO LOGIN E MENSAGEM DE ERRO ---
+    async handleEmailAuth() {
+        const e = document.getElementById("email-login").value;
+        const p = document.getElementById("pass-login").value;
+        const errorDiv = document.getElementById("login-error-msg");
+        const btn = document.getElementById("btn-entrar");
+
+        if(!e || !p) {
+            errorDiv.innerText = "Preencha e-mail e senha!";
+            errorDiv.style.display = "block";
+            return;
+        }
+
+        try {
+            btn.innerText = "Carregando...";
+            btn.disabled = true;
+            errorDiv.style.display = "none";
+            await window.AuthActions.email(e, p);
+        } catch (error) {
+            console.error(error);
+            let msg = "Erro ao entrar. Verifique seus dados.";
+            
+            // Mapeando erros comuns do Firebase para Português
+            if (error.code === 'auth/wrong-password') msg = "Senha incorreta!";
+            if (error.code === 'auth/invalid-email') msg = "E-mail inválido!";
+            if (error.code === 'auth/weak-password') msg = "A senha deve ter pelo menos 6 dígitos.";
+            if (error.code === 'auth/user-disabled') msg = "Esta conta foi desativada.";
+
+            errorDiv.innerText = msg;
+            errorDiv.style.display = "block";
+            btn.innerText = "Entrar / Cadastrar";
+            btn.disabled = false;
+        }
     },
+
     handleLogout() { window.AuthActions.logout(); },
 
     handleSave() {
         const d = document.getElementById("descricao"), v = document.getElementById("valor"), t = document.getElementById("tipo"), c = document.getElementById("categoriaManual"), r = document.getElementById("recorrente");
-        if (!d.value || !v.value) return alert("Preencha!");
+        if (!d.value || !v.value) return alert("Preencha os campos!");
         const novo = { id: this.state.idEdicao || Date.now(), descricao: d.value.trim(), valor: Number(v.value), tipo: t.value, categoria: c.value || this.autoCategory(d.value, t.value), recorrente: r.checked, data: this.state.idEdicao ? this.state.lancamentos.find(x => x.id === this.state.idEdicao).data : new Date().toLocaleDateString("pt-BR") };
         if (this.state.idEdicao) { const idx = this.state.lancamentos.findIndex(x => x.id === this.state.idEdicao); this.state.lancamentos[idx] = novo; this.state.idEdicao = null; }
         else { this.state.lancamentos.push(novo); }
         this.persist();
         d.value = ""; v.value = ""; r.checked = false;
         document.getElementById("btnSalvar").innerText = "Adicionar";
+        document.getElementById("tituloForm").innerText = "Novo Lançamento";
     },
 
     autoCategory(desc, tipo) {
         if (tipo === "entrada") return "Renda";
         const t = desc.toLowerCase();
-        if (t.includes("ifood") || t.includes("salgado") || t.includes("comida")) return "Alimentação";
-        if (t.includes("uber") || t.includes("posto") || t.includes("gasolina") || t.includes("i30")) return "Transporte";
+        if (t.includes("ifood") || t.includes("salgado") || t.includes("comida") || t.includes("burger") || t.includes("pizza")) return "Alimentação";
+        if (t.includes("uber") || t.includes("posto") || t.includes("gasolina") || t.includes("i30") || t.includes("mecanico")) return "Transporte";
+        if (t.includes("mercado") || t.includes("atacadão")) return "Mercado";
         return "Outros";
     },
 
     handleMetaChange() {
         const val = document.getElementById("inputMeta").value;
         if (this.state.user) window.FB.saveMeta(this.state.user.uid, Number(val));
+        this.updateUI();
     },
 
     importRecurring() {
@@ -75,13 +123,14 @@ const App = {
         const i = this.state.lancamentos.find(x => x.id === id);
         this.state.idEdicao = id;
         document.getElementById("descricao").value = i.descricao; document.getElementById("valor").value = i.valor; document.getElementById("btnSalvar").innerText = "Salvar Alterações";
+        document.getElementById("tituloForm").innerText = "Editando Lançamento";
         window.scrollTo({ top: 0, behavior: 'smooth' });
     },
 
     deleteItem(id) { if (confirm("Excluir?")) { this.state.lancamentos = this.state.lancamentos.filter(x => x.id !== id); this.persist(); } },
     clearAll() { if (confirm("Zerar?")) { this.state.lancamentos = []; this.persist(); } },
 
-    persist() { if (this.state.user) window.FB.save(this.state.user.uid, this.state.lancamentos); },
+    persist() { if (this.state.user) window.FB.save(this.state.user.uid, this.state.lancamentos); this.updateUI(); },
 
     updateUI() {
         const m = document.getElementById("filtroMes").value, a = document.getElementById("filtroAno").value, b = document.getElementById("inputBusca").value.toLowerCase();
@@ -115,8 +164,8 @@ const UI = {
                     <div class="item-topo"><strong>${i.recorrente ? '📌 ' : ''}${i.descricao}</strong> <span class="${i.tipo === 'entrada' ? 'valor-entrada' : 'valor-saida'}">${i.valor.toLocaleString('pt-BR', {style:'currency', currency:'BRL'})}</span></div>
                     <small style="color:#aaa; display:block; margin-bottom:10px;">${i.data} • ${i.categoria}</small>
                     <div class="item-acoes" style="display:flex; gap:8px;">
-                        <button onclick="App.prepareEdit(${i.id})" style="flex:1;">Editar</button>
-                        <button onclick="App.deleteItem(${i.id})" style="flex:1; background:#444;">Excluir</button>
+                        <button onclick="App.prepareEdit(${i.id})" style="flex:1; padding:10px;">Editar</button>
+                        <button onclick="App.deleteItem(${i.id})" style="flex:1; background:#444; padding:10px;">Excluir</button>
                     </div>
                 </div>` + lista.innerHTML;
         });
@@ -125,7 +174,7 @@ const UI = {
         document.getElementById("totalSaidas").innerText = sai.toLocaleString('pt-BR', {style:'currency', currency:'BRL'});
         const meta = Number(document.getElementById("inputMeta").value) || 0;
         const bar = document.getElementById("progress-bar"), stat = document.getElementById("statusMeta");
-        if (meta > 0) { const p = Math.min((sai/meta)*100, 100); bar.style.width = p+"%"; bar.style.backgroundColor = p > 90 ? "#ef4444" : "#22c55e"; stat.innerText = `${p.toFixed(1)}% da meta`; }
+        if (meta > 0) { const p = Math.min((sai/meta)*100, 100); bar.style.width = p+"%"; bar.style.backgroundColor = p > 90 ? "#ef4444" : "#22c55e"; stat.innerText = `${p.toFixed(1)}% da meta utilizada`; }
         document.getElementById("alertaRecorrencia").style.display = (filtrados.length === 0 && total.some(i => i.recorrente)) ? "block" : "none";
         Object.entries(cats).forEach(([c, v]) => {
             const perc = (v / Math.max(sai, 1)) * 100;
