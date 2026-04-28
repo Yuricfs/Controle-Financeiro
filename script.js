@@ -13,11 +13,10 @@ const App = {
 
     setUser(user) {
         this.state.user = user;
-        // Inicia escuta do Firebase específica para este UID
         if (window.FB) {
             window.FB.listen(user.uid, 
                 (data) => { this.state.lancamentos = data || []; this.updateUI(); },
-                (meta) => { if(meta) document.getElementById("inputMeta").value = meta; this.updateUI(); }
+                (meta) => { if(meta !== null) document.getElementById("inputMeta").value = meta; this.updateUI(); }
             );
         }
     },
@@ -68,20 +67,23 @@ const App = {
 
         this.persist();
         d.value = ""; v.value = ""; r.checked = false;
-        document.getElementById("btnSalvar").innerText = "Adicionar Lançamento";
+        document.getElementById("btnSalvar").innerText = "Adicionar";
+        document.getElementById("tituloForm").innerText = "Novo Lançamento";
     },
 
     autoCategory(desc, tipo) {
         if (tipo === "entrada") return "Renda";
         const t = desc.toLowerCase();
-        if (t.includes("ifood") || t.includes("salgado") || t.includes("comida")) return "Alimentação";
-        if (t.includes("uber") || t.includes("posto") || t.includes("gasolina") || t.includes("i30")) return "Transporte";
+        if (t.includes("ifood") || t.includes("salgado") || t.includes("comida") || t.includes("burger") || t.includes("pizza")) return "Alimentação";
+        if (t.includes("uber") || t.includes("posto") || t.includes("gasolina") || t.includes("i30") || t.includes("mecanico")) return "Transporte";
+        if (t.includes("mercado") || t.includes("atacadão")) return "Mercado";
         return "Outros";
     },
 
     handleMetaChange() {
         const val = document.getElementById("inputMeta").value;
         if (this.state.user) window.FB.saveMeta(this.state.user.uid, Number(val));
+        this.updateUI();
     },
 
     importRecurring() {
@@ -98,7 +100,11 @@ const App = {
         this.state.idEdicao = id;
         document.getElementById("descricao").value = i.descricao;
         document.getElementById("valor").value = i.valor;
+        document.getElementById("tipo").value = i.tipo;
+        document.getElementById("categoriaManual").value = i.categoria;
+        document.getElementById("recorrente").checked = i.recorrente || false;
         document.getElementById("btnSalvar").innerText = "Salvar Alterações";
+        document.getElementById("tituloForm").innerText = "Editando Lançamento";
         window.scrollTo({ top: 0, behavior: 'smooth' });
     },
 
@@ -106,28 +112,31 @@ const App = {
     clearAll() { if (confirm("Limpar tudo?")) { this.state.lancamentos = []; this.persist(); } },
 
     persist() {
-        if (this.state.user) {
-            window.FB.save(this.state.user.uid, this.state.lancamentos);
-        }
+        if (this.state.user) window.FB.save(this.state.user.uid, this.state.lancamentos);
+        this.updateUI();
     },
 
     updateUI() {
         const m = document.getElementById("filtroMes").value, a = document.getElementById("filtroAno").value;
         const b = document.getElementById("inputBusca").value.toLowerCase();
+        
         this.state.filtrados = this.state.lancamentos.filter(i => {
             const [, mes, ano] = i.data.split('/');
             return Number(mes) == m && Number(ano) == a && i.descricao.toLowerCase().includes(b);
         });
+
         UI.render(this.state.filtrados, this.state.lancamentos, this.state.charts);
     },
 
     exportPDF() {
         const { jsPDF } = window.jspdf;
         const doc = new jsPDF();
-        doc.text("Extrato Financeiro", 14, 15);
+        const mIdx = document.getElementById("filtroMes").value - 1;
+        const meses = ["Janeiro", "Fevereiro", "Março", "Abril", "Maio", "Junho", "Julho", "Agosto", "Setembro", "Outubro", "Novembro", "Dezembro"];
+        doc.text(`Relatorio Financeiro - ${meses[mIdx]}`, 14, 15);
         const rows = this.state.filtrados.map(i => [i.data, i.descricao, i.categoria, i.valor.toLocaleString('pt-BR', {style:'currency', currency:'BRL'})]);
         doc.autoTable({ head: [['Data', 'Item', 'Categoria', 'Valor']], body: rows, startY: 20 });
-        doc.save("extrato.pdf");
+        doc.save(`extrato_${meses[mIdx]}.pdf`);
     },
 
     exportExcel() {
@@ -148,6 +157,7 @@ const UI = {
             if (i.tipo === "entrada") ent += i.valor;
             else { sai += i.valor; cats[i.categoria] = (cats[i.categoria] || 0) + i.valor; }
 
+            // EXTRATO COM DATA E CATEGORIA RESTAURADOS
             lista.innerHTML = `
                 <div class="item">
                     <div class="item-topo"><strong>${i.recorrente ? '📌 ' : ''}${i.descricao}</strong> <span class="${i.tipo === 'entrada' ? 'valor-entrada' : 'valor-saida'}">${i.valor.toLocaleString('pt-BR', {style:'currency', currency:'BRL'})}</span></div>
@@ -171,10 +181,15 @@ const UI = {
             bar.style.width = p + "%";
             bar.style.backgroundColor = p > 90 ? "#ef4444" : "#22c55e";
             stat.innerText = `${p.toFixed(1)}% da meta utilizada`;
+        } else {
+            bar.style.width = "0%";
+            stat.innerText = "Nenhuma meta definida.";
         }
 
+        // Alerta Recorrência
         document.getElementById("alertaRecorrencia").style.display = (filtrados.length === 0 && total.some(i => i.recorrente)) ? "block" : "none";
 
+        // AS BARRINHAS NEON RESTAURADAS
         Object.entries(cats).forEach(([c, v]) => {
             const perc = (v / Math.max(sai, 1)) * 100;
             resumo.innerHTML += `
@@ -205,11 +220,31 @@ const UI = {
 
         const fluxo = {};
         filtrados.forEach(i => { const d = i.data.split('/')[0]; fluxo[d] = (fluxo[d] || 0) + (i.tipo === 'entrada' ? i.valor : -i.valor); });
-        const dias = Object.keys(fluxo).sort((a,b) => a-b);
+        const dias = Object.keys(fluxo).sort((a,b) => Number(a)-Number(b));
+        
         charts.linha = new Chart(lCtx, {
             type:'line',
-            data: { labels: dias.map(d => `Dia ${d}`), datasets: [{ label:'Fluxo (R$)', data: dias.map(d => fluxo[d]), borderColor:'#4ade80', backgroundColor:'rgba(74, 222, 128, 0.2)', fill:true, tension:0.4, pointRadius: 6, pointBackgroundColor: '#4ade80' }] },
-            options: { maintainAspectRatio: false, scales: { y: { grid: { color: 'rgba(255,255,255,0.1)' }, ticks: { color: '#fff', callback: v => 'R$ '+v } }, x: { ticks: { color: '#fff' } } }, plugins: { legend: { labels: { color: '#fff' } } } }
+            data: { 
+                labels: dias.map(d => `Dia ${d}`), 
+                datasets: [{ 
+                    label:'Saldo Diário', 
+                    data: dias.map(d => fluxo[d]), 
+                    borderColor:'#4ade80', 
+                    backgroundColor:'rgba(74, 222, 128, 0.2)', 
+                    fill:true, 
+                    tension:0.4, 
+                    pointRadius: 6, 
+                    pointBackgroundColor: '#4ade80' 
+                }] 
+            },
+            options: { 
+                maintainAspectRatio: false,
+                scales: { 
+                    y: { grid: { color: 'rgba(255,255,255,0.1)' }, ticks: { color: '#fff', callback: v => 'R$ '+v } }, 
+                    x: { ticks: { color: '#fff' } } 
+                }, 
+                plugins: { legend: { labels: { color: '#fff' } } } 
+            }
         });
     }
 };
